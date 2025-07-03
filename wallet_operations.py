@@ -113,8 +113,34 @@ class TronWallet:
             for attempt in range(3):
                 try:
                     trx_balance = self.tron.get_account_balance(address)
-                    trx_balance_float = float(trx_balance) / 1_000_000  # TRX有6位小数
-                    self.logger.info(f"TRX余额查询成功: {trx_balance_float}")
+                    # 调试：显示原始余额值和不同精度转换
+                    self.logger.info(f"TRX原始余额: {trx_balance}")
+                    
+                    # 测试不同的精度转换
+                    balance_raw = float(trx_balance)
+                    balance_6 = balance_raw / 1_000_000
+                    balance_9 = balance_raw / 1_000_000_000
+                    balance_12 = balance_raw / 1_000_000_000_000
+                    
+                    self.logger.info(f"不同精度转换结果:")
+                    self.logger.info(f"  原始值: {balance_raw}")
+                    self.logger.info(f"  除以1,000,000: {balance_6}")
+                    self.logger.info(f"  除以1,000,000,000: {balance_9}")
+                    self.logger.info(f"  除以1,000,000,000,000: {balance_12}")
+                    
+                    # 根据Tron网络规范，TRX使用SUN作为最小单位
+                    # 1 TRX = 1,000,000 SUN
+                    # 如果原始值看起来合理，使用6位小数
+                    # 如果原始值很大，可能需要不同的精度
+                    
+                    if balance_raw > 1_000_000_000:  # 如果原始值大于10亿
+                        # 可能原始值已经是TRX单位，不需要转换
+                        trx_balance_float = balance_raw
+                        self.logger.info(f"使用原始值作为TRX余额: {trx_balance_float}")
+                    else:
+                        # 使用标准6位小数转换
+                        trx_balance_float = balance_6
+                        self.logger.info(f"使用6位小数转换: {trx_balance_float}")
                     break
                 except Exception as e:
                     self.logger.warning(f"TRX余额查询失败 (尝试 {attempt + 1}/3): {e}")
@@ -127,7 +153,9 @@ class TronWallet:
                             api_url = f"https://api.trongrid.io/v1/accounts/{address}"
                             data = self._make_api_request(api_url)
                             if data and 'data' in data and data['data']:
-                                trx_balance_float = float(data['data'][0].get('balance', 0)) / 1_000_000
+                                raw_balance = data['data'][0].get('balance', 0)
+                                self.logger.info(f"API TRX原始余额: {raw_balance}")
+                                trx_balance_float = float(raw_balance) / 1_000_000
                                 self.logger.info(f"API获取TRX余额成功: {trx_balance_float}")
                         except Exception as api_e:
                             self.logger.error(f"API获取TRX余额也失败: {api_e}")
