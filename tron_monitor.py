@@ -17,8 +17,12 @@ class TronUSDTMonitor:
     """Tron链USDT监控器"""
     
     def __init__(self):
+        tron_api_key = os.getenv('TRON_API_KEY')
         self.tron = Tron(
-            provider=HTTPProvider(os.getenv('TRON_NODE_URL', 'https://api.trongrid.io'))
+            provider=HTTPProvider(
+                os.getenv('TRON_NODE_URL', 'https://api.trongrid.io'),
+                api_key=tron_api_key
+            )
         )
         
         # USDT合约地址 (Tron主网)
