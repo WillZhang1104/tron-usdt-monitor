@@ -12,6 +12,7 @@ import logging
 import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
+import threading
 
 # 导入自定义模块
 from tron_monitor import TronUSDTMonitor
@@ -185,6 +186,11 @@ class TronMonitorApp:
             await self.telegram_bot.application.stop()
             await self.telegram_bot.application.shutdown()
 
+def start_monitoring_task(app):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(app.start_monitoring())
+
 def main():
     """主函数"""
     # 设置日志
@@ -220,8 +226,12 @@ def main():
         # 创建并运行应用
         app = TronMonitorApp()
         
-        # 运行事件循环
-        asyncio.run(app.run())
+        # 启动监控任务（单独线程）
+        monitor_thread = threading.Thread(target=start_monitoring_task, args=(app,))
+        monitor_thread.start()
+        # 启动机器人（主线程）
+        asyncio.run(app.telegram_bot.send_startup_info())
+        app.telegram_bot.application.run_polling()
         
     except KeyboardInterrupt:
         logger.info("收到中断信号，正在退出...")
