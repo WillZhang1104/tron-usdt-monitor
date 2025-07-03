@@ -27,8 +27,61 @@ log_debug() {
     echo -e "${BLUE}[DEBUG]${NC} $1"
 }
 
-echo "🔍 Telegram机器人诊断工具"
-echo "=========================="
+echo "🔍 诊断Telegram机器人问题..."
+
+# 检查当前目录
+echo "📁 当前目录: $(pwd)"
+
+# 检查文件是否存在
+echo "📄 检查关键文件:"
+ls -la *.py *.sh 2>/dev/null || echo "❌ 未找到Python文件"
+
+# 检查telegram_bot.py的导入语句
+echo "🔍 检查telegram_bot.py导入语句:"
+if [ -f "telegram_bot.py" ]; then
+    echo "第19行内容:"
+    sed -n '19p' telegram_bot.py
+    echo ""
+    echo "导入语句检查:"
+    grep -n "from wallet_operations import" telegram_bot.py
+else
+    echo "❌ telegram_bot.py 不存在"
+fi
+
+# 检查wallet_operations.py的类定义
+echo "🔍 检查wallet_operations.py类定义:"
+if [ -f "wallet_operations.py" ]; then
+    echo "类定义检查:"
+    grep -n "class.*:" wallet_operations.py
+else
+    echo "❌ wallet_operations.py 不存在"
+fi
+
+# 检查Python环境
+echo "🐍 检查Python环境:"
+python3 --version 2>/dev/null || echo "❌ Python3 未安装"
+
+# 检查依赖
+echo "📦 检查依赖:"
+pip3 list | grep -E "(telegram|tronpy|python-dotenv)" 2>/dev/null || echo "❌ 缺少关键依赖"
+
+# 测试导入
+echo "🧪 测试Python导入:"
+python3 -c "
+try:
+    from wallet_operations import TronWallet
+    print('✅ TronWallet 导入成功')
+except ImportError as e:
+    print(f'❌ TronWallet 导入失败: {e}')
+    print('尝试导入WalletOperations...')
+    try:
+        from wallet_operations import WalletOperations
+        print('⚠️ 发现旧的WalletOperations类')
+    except ImportError as e2:
+        print(f'❌ WalletOperations 也不存在: {e2}')
+" 2>/dev/null
+
+echo "🔍 诊断完成"
 
 # 检查.env文件
 log_info "1. 检查配置文件..."
