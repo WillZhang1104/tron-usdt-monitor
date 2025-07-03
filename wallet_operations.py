@@ -238,7 +238,7 @@ class TronWallet:
                 to_address,     # 接收方地址
                 int(amount * 1_000_000)  # 金额（Sun）
             )
-            self.logger.error(f"TRX转账txn.inspect: {txn.inspect()}")
+            self.logger.error(f"TRX转账txn: {txn}")
             # 等待交易确认
             result = txn.wait()
             self.logger.error(f"TRX转账wait返回: {result}")
