@@ -191,6 +191,13 @@ def start_monitoring_task(app):
     asyncio.set_event_loop(loop)
     loop.run_until_complete(app.start_monitoring())
 
+async def on_startup(application):
+    # 只推送你想要的启动信息，不推送最新交易
+    await application.bot.send_message(
+        chat_id=8171033557,
+        text="机器人已启动，监控地址xxx...\n可用命令：/balance /latest ..."
+    )
+
 def main():
     """主函数"""
     # 设置日志
@@ -226,11 +233,12 @@ def main():
         # 创建并运行应用
         app = TronMonitorApp()
         
-        # 启动监控任务（单独线程）
+        # 启动监控任务
         monitor_thread = threading.Thread(target=start_monitoring_task, args=(app,))
         monitor_thread.start()
-        # 启动机器人（主线程）
-        asyncio.run(app.telegram_bot.send_startup_info())
+        # 注册on_startup
+        app.telegram_bot.application.post_init = on_startup
+        # 只跑run_polling
         app.telegram_bot.application.run_polling()
         
     except KeyboardInterrupt:
