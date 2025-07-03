@@ -126,26 +126,30 @@ class AddressManager:
         return result
     
     def get_address_for_transfer(self, input_text: str) -> Optional[str]:
-        """根据输入获取转账地址（支持序号、别名、地址）"""
+        """根据输入获取转账地址（支持序号、别名、地址），非法输入返回None"""
         try:
             # 尝试按序号查找
             if input_text.isdigit():
                 index = int(input_text) - 1
                 addresses = list(self.whitelist_addresses.keys())
                 if 0 <= index < len(addresses):
-                    return addresses[index]
-            
+                    addr = addresses[index]
+                    self.logger.info(f"get_address_for_transfer: 输入序号{input_text}，映射为地址{addr}")
+                    return addr
+                else:
+                    self.logger.warning(f"get_address_for_transfer: 输入序号{input_text}超出范围")
+                    return None
             # 尝试按别名查找
             addr_data = self.get_address_by_alias(input_text)
             if addr_data:
+                self.logger.info(f"get_address_for_transfer: 输入别名{input_text}，映射为地址{addr_data['address']}")
                 return addr_data['address']
-            
             # 尝试按地址查找
             if self._validate_address(input_text) and input_text in self.whitelist_addresses:
+                self.logger.info(f"get_address_for_transfer: 输入地址{input_text}，为白名单地址")
                 return input_text
-            
+            self.logger.warning(f"get_address_for_transfer: 输入{input_text}未匹配任何白名单地址/别名/序号")
             return None
-            
         except Exception as e:
             self.logger.error(f"获取转账地址失败: {e}")
             return None 
