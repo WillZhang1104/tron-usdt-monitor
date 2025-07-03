@@ -71,9 +71,9 @@ class TronWallet:
             if os.path.exists(encrypted_file):
                 import subprocess
                 try:
-                    # 解密私钥文件
+                    gpg_passphrase = os.getenv('GPG_PASSPHRASE')
                     result = subprocess.run(
-                        ['gpg', '--decrypt', encrypted_file],
+                        ['gpg', '--batch', '--yes', f'--passphrase={gpg_passphrase}', '--decrypt', encrypted_file],
                         capture_output=True,
                         text=True,
                         check=True
