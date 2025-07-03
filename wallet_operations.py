@@ -233,6 +233,7 @@ class TronWallet:
                 int(amount * 1_000_000),  # 转换为最小单位
                 private_key
             )
+            self.logger.error(f"TRX转账txn.inspect: {txn.inspect()}")
             
             # 等待交易确认
             result = txn.wait()
@@ -251,7 +252,7 @@ class TronWallet:
                 return {'success': False, 'error': str(result)}
                 
         except Exception as e:
-            self.logger.error(f"TRX转账失败: {e}")
+            self.logger.error(f"TRX转账失败: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}
     
     def transfer_usdt(self, to_address: str, amount: float) -> Dict[str, Any]:
