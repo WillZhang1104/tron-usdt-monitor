@@ -286,36 +286,39 @@ WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
             await update.message.reply_text("❌ 钱包余额查询失败")
     
     async def transfer_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """转账命令"""
+        """转账命令，支持TRX和USDT"""
         if not self._is_authorized(update.effective_user.id):
             await update.message.reply_text("❌ 您没有权限使用此机器人")
             return
-        
         try:
-            # 检查是否有参数
+            # 没有参数时，弹出币种选择按钮
             if not context.args:
-                # 显示地址选择界面
-                address_list = self.address_manager.format_address_list()
+                keyboard = [
+                    [InlineKeyboardButton("USDT", callback_data="choose_token:USDT"),
+                     InlineKeyboardButton("TRX", callback_data="choose_token:TRX")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
                 await update.message.reply_text(
-                    f"{address_list}\n"
-                    "💡 使用方法：\n"
-                    "/transfer <序号/别名/地址> <金额> <备注(可选)>\n\n"
-                    "示例：\n"
-                    "/transfer 1 100 测试转账\n"
-                    "/transfer 钱包1 50\n"
-                    "/transfer TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t 25"
+                    "请选择转账币种：",
+                    reply_markup=reply_markup
                 )
                 return
-            
-            # 解析参数
-            if len(context.args) < 2:
-                await update.message.reply_text("❌ 参数不足\n\n使用方法：/transfer <地址> <金额> [备注]")
-                return
-            
+            # 参数 >=2，支持/transfer <目标> <金额> <币种> <备注>
             address_input = context.args[0]
             amount_str = context.args[1]
-            remark = " ".join(context.args[2:]) if len(context.args) > 2 else ""
-            
+            # 币种参数可选
+            token_type = None
+            remark = ""
+            if len(context.args) >= 3 and context.args[2].upper() in ("TRX", "USDT"):
+                token_type = context.args[2].upper()
+                remark = " ".join(context.args[3:]) if len(context.args) > 3 else ""
+            else:
+                remark = " ".join(context.args[2:]) if len(context.args) > 2 else ""
+                # 如果用户之前点过币种按钮，优先用
+                token_type = context.user_data.get("transfer_token")
+            if token_type not in ("TRX", "USDT"):
+                await update.message.reply_text("❌ 未指定币种，请输入/transfer后选择币种或在命令中加上TRX/USDT")
+                return
             # 验证金额
             try:
                 amount = float(amount_str)
@@ -325,98 +328,92 @@ WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
             except ValueError:
                 await update.message.reply_text("❌ 无效的金额格式")
                 return
-            
             # 获取目标地址
             target_address = self.address_manager.get_address_for_transfer(address_input)
             if not target_address:
                 await update.message.reply_text("❌ 未找到目标地址\n\n请检查序号、别名或地址是否正确")
                 return
-            
             # 获取地址信息
             addr_info = self.address_manager.get_address_info(target_address)
             alias = addr_info['alias'] if addr_info else "未知"
-            
             # 确认转账
             confirm_text = f"""
 ⚠️ 转账确认
 
 📤 目标地址: {alias}
 📍 地址: {target_address}
-💰 金额: {amount} USDT
+💰 金额: {amount} {token_type}
 📝 备注: {remark if remark else "无"}
 
 🔒 请确认转账信息是否正确
             """
-            
-            # 创建确认按钮
             keyboard = [
-                [
-                    InlineKeyboardButton("✅ 确认转账", callback_data=f"confirm_transfer:{target_address}:{amount}:{remark}"),
-                    InlineKeyboardButton("❌ 取消", callback_data="cancel_transfer")
-                ]
+                [InlineKeyboardButton("✅ 确认转账", callback_data=f"confirm_transfer:{target_address}:{amount}:{token_type}:{remark}"),
+                 InlineKeyboardButton("❌ 取消", callback_data="cancel_transfer")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            
             await update.message.reply_text(confirm_text, reply_markup=reply_markup)
-            
         except Exception as e:
             self.logger.error(f"转账命令处理失败: {e}")
             await update.message.reply_text("❌ 转账命令处理失败")
     
     async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """按钮回调处理"""
+        """按钮回调处理，支持币种选择和转账确认"""
         if not self._is_authorized(update.effective_user.id):
             await update.callback_query.answer("❌ 您没有权限使用此机器人")
             return
-        
         query = update.callback_query
         await query.answer()
-        
         try:
             if query.data == "cancel_transfer":
                 await query.edit_message_text("❌ 转账已取消")
                 return
-            
+            if query.data.startswith("choose_token:"):
+                # 用户选择了币种
+                token_type = query.data.split(":")[1]
+                context.user_data["transfer_token"] = token_type
+                address_list = self.address_manager.format_address_list()
+                await query.edit_message_text(
+                    f"已选择币种：{token_type}\n\n{address_list}\n\n"
+                    "请输入转账命令：\n/transfer <序号/别名/地址> <金额> <备注(可选)>\n"
+                    "如：/transfer 1 10 测试"
+                )
+                return
             if query.data.startswith("confirm_transfer:"):
                 # 解析转账参数
-                parts = query.data.split(":")
-                if len(parts) >= 3:
+                parts = query.data.split(":", 4)
+                if len(parts) >= 5:
                     target_address = parts[1]
                     amount = float(parts[2])
-                    remark = parts[3] if len(parts) > 3 else ""
-                    
+                    token_type = parts[3]
+                    remark = parts[4]
                     await query.edit_message_text("🔄 正在执行转账，请稍候...")
-                    
                     try:
-                        # 执行转账
-                        result = self.wallet_operations.transfer_usdt(target_address, amount)
+                        if token_type == "TRX":
+                            result = self.wallet_operations.transfer_trx(target_address, amount)
+                        else:
+                            result = self.wallet_operations.transfer_usdt(target_address, amount)
                         if result['success']:
                             txid = result['txid']
                         else:
                             raise Exception(result['error'])
-                        
-                        # 获取地址信息
                         addr_info = self.address_manager.get_address_info(target_address)
                         alias = addr_info['alias'] if addr_info else "未知"
-                        
                         success_text = f"""
 ✅ 转账成功
 
 📤 目标地址: {alias}
 📍 地址: {target_address}
-💰 金额: {amount} USDT
+💰 金额: {amount} {token_type}
 📝 备注: {remark if remark else "无"}
 🔗 交易ID: {txid}
 
 💡 提示：交易可能需要几分钟确认
                         """
-                        
                         await query.edit_message_text(success_text)
-                        
                     except Exception as e:
                         self.logger.error(f"转账执行失败: {e}")
                         await query.edit_message_text(f"❌ 转账失败\n\n错误信息: {str(e)}")
-            
         except Exception as e:
             self.logger.error(f"按钮回调处理失败: {e}")
             await query.edit_message_text("❌ 操作失败")
