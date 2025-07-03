@@ -238,15 +238,20 @@ class TronWallet:
                 to_address,     # 接收方地址
                 int(amount * 1_000_000)  # 金额（Sun）
             )
-            self.logger.info(f"TRX转账txn raw_data: {getattr(txn, 'raw_data', txn)}")
-            # 等待交易确认
-            result = txn.wait()
-            self.logger.error(f"TRX转账wait返回: {result}")
-            if result.get('receipt', {}).get('result') == 'SUCCESS':
+            # 构建并签名
+            signed_txn = txn.build().sign(self.tron.private_key)
+            # 广播交易
+            result = signed_txn.broadcast()
+            # 日志输出
+            self.logger.info(f"TRX转账signed_txn.txid: {getattr(signed_txn, 'txid', None)}")
+            self.logger.info(f"TRX转账signed_txn.raw_data: {getattr(signed_txn, 'raw_data', None)}")
+            self.logger.info(f"TRX转账broadcast结果: {result}")
+            # 判断结果
+            if isinstance(result, dict) and result.get('result'):
                 self.logger.info(f"TRX转账成功: {amount} TRX -> {to_address}")
                 return {
                     'success': True,
-                    'txid': txn.txid,
+                    'txid': getattr(signed_txn, 'txid', None),
                     'amount': amount,
                     'to_address': to_address,
                     'from_address': from_address
