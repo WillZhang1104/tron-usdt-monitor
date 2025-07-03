@@ -437,9 +437,21 @@ WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
             self.logger.error("请求超时")
     
     async def send_startup_info(self):
-        msg = (
-            "机器人已启动，监控地址xxx...\n可用命令：/balance /latest ..."
-        )
+        msg = """
+🤖 Tron地址监控机器人
+
+📋 可用命令：
+/start - 显示此帮助信息
+/help - 显示详细帮助
+/status - 显示监控状态
+/balance - 查询监控地址余额
+/latest - 显示最新交易
+/whitelist - 显示白名单地址
+/wallet_balance - 查询钱包余额
+/transfer - 转账到白名单地址
+
+💡 提示：白名单地址在 .env 文件中配置
+        """
         try:
             await self.application.bot.send_message(chat_id=8171033557, text=msg)
         except Exception as e:
