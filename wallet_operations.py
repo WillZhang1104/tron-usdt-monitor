@@ -40,15 +40,34 @@ class TronWallet:
         self.logger.info("Tron钱包操作模块初始化完成")
     
     def _get_private_key(self) -> Optional[PrivateKey]:
-        """获取私钥（需要安全存储）"""
+        """获取私钥（支持加密存储）"""
         try:
-            # 从环境变量获取私钥（建议使用加密存储）
+            # 方法1：从环境变量获取私钥
             private_key_hex = os.getenv('TRON_PRIVATE_KEY')
-            if not private_key_hex:
-                self.logger.error("未设置TRON_PRIVATE_KEY")
-                return None
+            if private_key_hex:
+                return PrivateKey(bytes.fromhex(private_key_hex))
             
-            return PrivateKey(bytes.fromhex(private_key_hex))
+            # 方法2：从加密文件获取私钥
+            encrypted_file = os.getenv('TRON_PRIVATE_KEY_FILE', 'private_key.txt.gpg')
+            if os.path.exists(encrypted_file):
+                import subprocess
+                try:
+                    # 解密私钥文件
+                    result = subprocess.run(
+                        ['gpg', '--decrypt', encrypted_file],
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    )
+                    private_key_hex = result.stdout.strip()
+                    return PrivateKey(bytes.fromhex(private_key_hex))
+                except subprocess.CalledProcessError as e:
+                    self.logger.error(f"解密私钥文件失败: {e}")
+                    return None
+            
+            self.logger.error("未找到私钥配置")
+            return None
+            
         except Exception as e:
             self.logger.error(f"获取私钥失败: {e}")
             return None
