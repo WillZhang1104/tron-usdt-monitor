@@ -13,6 +13,7 @@ import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
 import threading
+from telegram import BotCommand
 
 # 导入自定义模块
 from tron_monitor import TronUSDTMonitor
@@ -192,6 +193,18 @@ def start_monitoring_task(app):
     loop.run_until_complete(app.start_monitoring())
 
 async def on_startup(application):
+    # 注册BotCommand，支持/自动补全
+    commands = [
+        BotCommand("start", "显示此帮助信息"),
+        BotCommand("help", "显示详细帮助"),
+        BotCommand("status", "显示监控状态"),
+        BotCommand("balance", "查询监控地址余额"),
+        BotCommand("latest", "显示最新交易"),
+        BotCommand("whitelist", "显示白名单地址"),
+        BotCommand("wallet_balance", "查询钱包余额"),
+        BotCommand("transfer", "转账到白名单地址")
+    ]
+    await application.bot.set_my_commands(commands)
     # 调用telegram_bot的send_startup_info方法
     bot = application.bot_data.get("telegram_bot_instance")
     if bot:

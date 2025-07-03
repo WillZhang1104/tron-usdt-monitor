@@ -49,7 +49,7 @@ class TelegramBot:
     
     def _setup_handlers(self):
         """
-        设置命令处理器，并注册BotCommand列表，支持输入/自动弹出命令
+        设置命令处理器（BotCommand注册交由on_startup处理）
         """
         # 基础命令
         self.application.add_handler(CommandHandler("start", self.start_command))
@@ -66,18 +66,6 @@ class TelegramBot:
         self.application.add_handler(CallbackQueryHandler(self.button_callback))
         # 错误处理器
         self.application.add_error_handler(self.error_handler)
-        # 注册BotCommand，支持/自动补全
-        commands = [
-            BotCommand("start", "显示此帮助信息"),
-            BotCommand("help", "显示详细帮助"),
-            BotCommand("status", "显示监控状态"),
-            BotCommand("balance", "查询监控地址余额"),
-            BotCommand("latest", "显示最新交易"),
-            BotCommand("whitelist", "显示白名单地址"),
-            BotCommand("wallet_balance", "查询钱包余额"),
-            BotCommand("transfer", "转账到白名单地址")
-        ]
-        asyncio.create_task(self.application.bot.set_my_commands(commands))
     
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """开始命令"""
