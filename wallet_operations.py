@@ -213,20 +213,21 @@ class TronWallet:
             # 验证参数
             if not self._validate_transfer(to_address, amount, 'TRX'):
                 return {'success': False, 'error': '参数验证失败'}
-            
             # 获取私钥
             private_key = self._get_private_key()
             if not private_key:
                 return {'success': False, 'error': '无法获取私钥'}
-            
             # 获取发送方地址
             from_address = private_key.public_key.to_base58check_address()
-            
             # 检查余额
             balance = self.get_balance(from_address)
             if balance['TRX'] < amount:
                 return {'success': False, 'error': f'余额不足: {balance["TRX"]} < {amount}'}
-            
+            # 打印目标地址详细信息并做严格校验
+            self.logger.info(f"transfer_trx: to_address={repr(to_address)}, type={type(to_address)}, len={len(to_address)}")
+            if not isinstance(to_address, str) or not to_address.startswith('T') or len(to_address) != 34:
+                self.logger.error(f"transfer_trx: 非法TRON地址: {repr(to_address)}")
+                return {'success': False, 'error': f'非法TRON地址: {repr(to_address)}'}
             # 创建交易
             txn = self.tron.trx.transfer(
                 to_address,
@@ -234,11 +235,9 @@ class TronWallet:
                 private_key
             )
             self.logger.error(f"TRX转账txn.inspect: {txn.inspect()}")
-            
             # 等待交易确认
             result = txn.wait()
             self.logger.error(f"TRX转账wait返回: {result}")
-            
             if result.get('receipt', {}).get('result') == 'SUCCESS':
                 self.logger.info(f"TRX转账成功: {amount} TRX -> {to_address}")
                 return {
@@ -250,7 +249,6 @@ class TronWallet:
                 }
             else:
                 return {'success': False, 'error': str(result)}
-                
         except Exception as e:
             self.logger.error(f"TRX转账失败: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}
