@@ -1,6 +1,7 @@
 import os
 import logging
 import asyncio
+import time
 from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
@@ -279,12 +280,19 @@ class TelegramBot:
                 return
             
             address = private_key.public_key.to_base58check_address()
+            
+            # 添加调试信息
+            debug_message = f"🔍 调试信息:\n"
+            debug_message += f"📍 钱包地址: {address}\n"
+            debug_message += f"⏰ 查询时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            
             balance = wallet.get_balance(address)
             
             balance_message = f"💰 钱包余额\n\n"
             balance_message += f"📍 地址: {address[:10]}...{address[-10:]}\n"
-            balance_message += f"⚡ TRX: {balance['TRX']:,.2f}\n"
-            balance_message += f"💵 USDT: {balance['USDT']:,.2f}"
+            balance_message += f"⚡ TRX: {balance['TRX']:,.6f}\n"
+            balance_message += f"💵 USDT: {balance['USDT']:,.6f}\n\n"
+            balance_message += debug_message
             
             await update.message.reply_text(balance_message)
             

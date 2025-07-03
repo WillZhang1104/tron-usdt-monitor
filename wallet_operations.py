@@ -108,13 +108,48 @@ class TronWallet:
     def get_balance(self, address: str) -> Dict[str, float]:
         """获取地址余额"""
         try:
-            # 获取TRX余额
-            trx_balance = self.tron.get_account_balance(address)
-            trx_balance_float = float(trx_balance) / 1_000_000  # TRX有6位小数
+            # 获取TRX余额（添加重试机制）
+            trx_balance_float = 0.0
+            for attempt in range(3):
+                try:
+                    trx_balance = self.tron.get_account_balance(address)
+                    trx_balance_float = float(trx_balance) / 1_000_000  # TRX有6位小数
+                    self.logger.info(f"TRX余额查询成功: {trx_balance_float}")
+                    break
+                except Exception as e:
+                    self.logger.warning(f"TRX余额查询失败 (尝试 {attempt + 1}/3): {e}")
+                    if attempt < 2:
+                        import time
+                        time.sleep(1)
+                    else:
+                        # 最后一次尝试失败，使用API直接查询
+                        try:
+                            api_url = f"https://api.trongrid.io/v1/accounts/{address}"
+                            data = self._make_api_request(api_url)
+                            if data and 'data' in data and data['data']:
+                                trx_balance_float = float(data['data'][0].get('balance', 0)) / 1_000_000
+                                self.logger.info(f"API获取TRX余额成功: {trx_balance_float}")
+                        except Exception as api_e:
+                            self.logger.error(f"API获取TRX余额也失败: {api_e}")
             
             # 获取USDT余额
-            usdt_balance = self.usdt_contract.functions.balanceOf(address)
-            usdt_balance_float = float(usdt_balance) / 1_000_000  # USDT有6位小数
+            usdt_balance_float = 0.0
+            try:
+                usdt_balance = self.usdt_contract.functions.balanceOf(address)
+                usdt_balance_float = float(usdt_balance) / 1_000_000  # USDT有6位小数
+                self.logger.info(f"USDT余额查询成功: {usdt_balance_float}")
+            except Exception as e:
+                self.logger.error(f"USDT余额查询失败: {e}")
+                # 备用API查询
+                try:
+                    api_url = f"https://api.trongrid.io/v1/accounts/{address}/tokens/trc20"
+                    params = {'contract_address': self.usdt_contract_address}
+                    data = self._make_api_request(api_url, params)
+                    if data and 'data' in data and data['data']:
+                        usdt_balance_float = float(data['data'][0].get('balance', 0)) / 1_000_000
+                        self.logger.info(f"API获取USDT余额成功: {usdt_balance_float}")
+                except Exception as api_e:
+                    self.logger.error(f"API获取USDT余额也失败: {api_e}")
             
             return {
                 'TRX': trx_balance_float,
