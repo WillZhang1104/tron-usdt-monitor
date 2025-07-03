@@ -22,6 +22,8 @@ class TronWallet:
     """Tron钱包操作类"""
     
     def __init__(self):
+        # 设置日志
+        self.logger = logging.getLogger(__name__)
         tron_api_key = os.getenv('TRON_API_KEY')
         self.tron = Tron(
             provider=HTTPProvider(
@@ -29,22 +31,20 @@ class TronWallet:
                 api_key=tron_api_key
             )
         )
-        
+        # 获取私钥
+        self.private_key = self._get_private_key()
+        if not self.private_key:
+            self.logger.error("无法初始化私钥")
+            raise ValueError("无法初始化私钥")
         # USDT合约地址
         self.usdt_contract_address = os.getenv('USDT_CONTRACT_ADDRESS', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t')
         self.usdt_contract = self.tron.get_contract(self.usdt_contract_address)
-        
-        # 设置日志
-        self.logger = logging.getLogger(__name__)
-        
         # 安全设置
-        self.max_trx_amount = float(os.getenv('MAX_TRX_AMOUNT', '100'))  # 最大TRX转账金额
-        self.max_usdt_amount = float(os.getenv('MAX_USDT_AMOUNT', '1000'))  # 最大USDT转账金额
-        
+        self.max_trx_amount = float(os.getenv('MAX_TRX_AMOUNT', '100'))
+        self.max_usdt_amount = float(os.getenv('MAX_USDT_AMOUNT', '1000'))
         # 自动同步白名单
         self.address_manager = AddressManager()
-        self.allowed_addresses = self.address_manager.get_whitelist_addresses()
-        
+        self.allowed_addresses = [addr.strip() for addr in self.address_manager.get_whitelist_addresses()]
         self.logger.info(f"Tron钱包操作模块初始化完成，自动同步白名单: {self.allowed_addresses}")
     
     def _make_api_request(self, url: str, params: dict = None) -> Optional[dict]:
@@ -103,8 +103,7 @@ class TronWallet:
     def _validate_transfer(self, to_address: str, amount: float, token_type: str) -> bool:
         """验证转账参数"""
         try:
-            # 验证地址格式
-            if not to_address.startswith('T') or len(to_address) != 34:
+            if not isinstance(to_address, str) or not to_address.strip() or not is_base58check_address(to_address.strip()):
                 self.logger.error(f"无效的地址格式: {to_address}")
                 return False
             
@@ -123,7 +122,7 @@ class TronWallet:
                 return False
             
             # 检查白名单（如果设置了）
-            if self.allowed_addresses and to_address not in self.allowed_addresses:
+            if self.allowed_addresses and to_address.strip() not in self.allowed_addresses:
                 self.logger.error(f"地址不在白名单中: {to_address}")
                 return False
             
@@ -210,43 +209,30 @@ class TronWallet:
     def transfer_trx(self, to_address: str, amount: float) -> Dict[str, Any]:
         """转账TRX"""
         try:
-            # 新增：严格的TRON主网地址合法性校验
-            if not isinstance(to_address, str) or not is_base58check_address(to_address.strip()):
+            self.logger.info(f"transfer_trx: to_address={repr(to_address)}, type={type(to_address)}, amount={amount}, type={type(amount)}")
+            to_address = to_address.strip()
+            if not isinstance(to_address, str) or not to_address or not is_base58check_address(to_address):
                 self.logger.error(f"transfer_trx: 非法TRON主网地址: {repr(to_address)}")
                 return {'success': False, 'error': f'非法TRON主网地址: {repr(to_address)}'}
-            # 验证参数
+            if not isinstance(amount, (int, float)) or amount <= 0:
+                self.logger.error(f"transfer_trx: 非法金额: {amount}")
+                return {'success': False, 'error': f'非法金额: {amount}'}
             if not self._validate_transfer(to_address, amount, 'TRX'):
                 return {'success': False, 'error': '参数验证失败'}
-            # 获取私钥
-            private_key = self._get_private_key()
-            if not private_key:
-                return {'success': False, 'error': '无法获取私钥'}
-            # 获取发送方地址
-            from_address = private_key.public_key.to_base58check_address()
-            # 检查余额
+            from_address = self.private_key.public_key.to_base58check_address()
             balance = self.get_balance(from_address)
             if balance['TRX'] < amount:
                 return {'success': False, 'error': f'余额不足: {balance["TRX"]} < {amount}'}
-            # 打印目标地址详细信息并做严格校验
-            self.logger.info(f"transfer_trx: to_address={repr(to_address)}, type={type(to_address)}, len={len(to_address)}")
-            if not isinstance(to_address, str) or not to_address.startswith('T') or len(to_address) != 34:
-                self.logger.error(f"transfer_trx: 非法TRON地址: {repr(to_address)}")
-                return {'success': False, 'error': f'非法TRON地址: {repr(to_address)}'}
-            # 创建交易
             txn = self.tron.trx.transfer(
-                from_address,   # 发送方地址
-                to_address,     # 接收方地址
-                int(amount * 1_000_000)  # 金额（Sun）
+                from_address,
+                to_address,
+                int(amount * 1_000_000)
             )
-            # 构建并签名
-            signed_txn = txn.build().sign(private_key)
-            # 广播交易
+            signed_txn = txn.build().sign(self.private_key)
             result = signed_txn.broadcast()
-            # 日志输出
-            self.logger.info(f"TRX转账signed_txn.txid: {getattr(signed_txn, 'txid', None)}")
-            self.logger.info(f"TRX转账signed_txn.raw_data: {getattr(signed_txn, 'raw_data', None)}")
-            self.logger.info(f"TRX转账broadcast结果: {result}")
-            # 判断结果
+            self.logger.info(f"TRX转账txid: {getattr(signed_txn, 'txid', None)}")
+            self.logger.info(f"TRX转账raw_data: {getattr(signed_txn, 'raw_data', None)}")
+            self.logger.info(f"TRX转账result: {result}")
             if isinstance(result, dict) and result.get('result'):
                 self.logger.info(f"TRX转账成功: {amount} TRX -> {to_address}")
                 return {
@@ -257,6 +243,7 @@ class TronWallet:
                     'from_address': from_address
                 }
             else:
+                self.logger.error(f"TRX转账失败: {result}")
                 return {'success': False, 'error': str(result)}
         except Exception as e:
             self.logger.error(f"TRX转账失败: {e}", exc_info=True)
@@ -265,44 +252,38 @@ class TronWallet:
     def transfer_usdt(self, to_address: str, amount: float) -> Dict[str, Any]:
         """转账USDT"""
         try:
-            # 验证参数
+            self.logger.info(f"transfer_usdt: to_address={repr(to_address)}, type={type(to_address)}, amount={amount}, type={type(amount)}")
+            to_address = to_address.strip()
             if not self._validate_transfer(to_address, amount, 'USDT'):
                 return {'success': False, 'error': '参数验证失败'}
-            
-            # 获取私钥
-            private_key = self._get_private_key()
-            if not private_key:
-                return {'success': False, 'error': '无法获取私钥'}
-            
-            # 获取发送方地址
-            from_address = private_key.public_key.to_base58check_address()
-            
-            # 检查余额
+            from_address = self.private_key.public_key.to_base58check_address()
             balance = self.get_balance(from_address)
             if balance['USDT'] < amount:
                 return {'success': False, 'error': f'余额不足: {balance["USDT"]} < {amount}'}
-            
-            # 创建USDT转账交易
+            energy_needed = 30_000
+            resource = self.tron.get_account_resource(from_address)
+            if resource.get('EnergyLimit', 0) < energy_needed:
+                self.logger.error(f"能源不足: {resource.get('EnergyLimit', 0)} < {energy_needed}")
+                return {'success': False, 'error': '能源不足'}
             txn = self.usdt_contract.functions.transfer(
                 to_address,
-                int(amount * 1_000_000)  # 转换为最小单位
-            ).with_owner(from_address).fee_limit(10_000_000).build().sign(private_key)
-            
-            # 发送交易
+                int(amount * 1_000_000)
+            ).with_owner(from_address).fee_limit(10_000_000).build().sign(self.private_key)
             result = txn.broadcast()
-            # 判断交易是否成功
+            self.logger.info(f"USDT转账txid: {getattr(txn, 'txid', None)}")
+            self.logger.info(f"USDT转账result: {result}")
             if isinstance(result, dict) and result.get('result'):
                 self.logger.info(f"USDT转账成功: {amount} USDT -> {to_address}")
                 return {
                     'success': True,
-                    'txid': txn.txid,
+                    'txid': getattr(txn, 'txid', None),
                     'amount': amount,
                     'to_address': to_address,
                     'from_address': from_address
                 }
             else:
-                return {'success': False, 'error': '交易失败'}
-                
+                self.logger.error(f"USDT转账失败: {result}")
+                return {'success': False, 'error': str(result)}
         except Exception as e:
             self.logger.error(f"USDT转账失败: {e}")
             return {'success': False, 'error': str(e)}
