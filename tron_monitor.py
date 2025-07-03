@@ -32,8 +32,12 @@ class TronUSDTMonitor:
         # 初始化地址管理器
         self.address_manager = AddressManager()
         
-        # 获取白名单地址作为监控地址
-        self.monitor_addresses = self.address_manager.get_whitelist_addresses()
+        # 只监控 MONITOR_ADDRESSES
+        self.monitor_addresses = os.getenv('MONITOR_ADDRESSES', '').split(',')
+        self.monitor_addresses = [addr.strip() for addr in self.monitor_addresses if addr.strip()]
+        
+        print("监控地址列表：", self.monitor_addresses)
+        print("白名单地址列表：", self.address_manager.get_whitelist_addresses())
         
         # 记录已处理的交易
         self.processed_transactions = set()
@@ -49,7 +53,8 @@ class TronUSDTMonitor:
         )
         self.logger = logging.getLogger(__name__)
         
-        self.logger.info(f"初始化Tron监控器，监控地址: {self.monitor_addresses}")
+        self.logger.info(f"监控地址列表：{self.monitor_addresses}")
+        self.logger.info(f"白名单地址列表：{self.address_manager.get_whitelist_addresses()}")
     
     def _make_api_request(self, url: str, params: dict = None, max_retries: int = 3) -> Optional[dict]:
         """发送API请求，带重试机制"""
@@ -191,7 +196,8 @@ class TronUSDTMonitor:
     
     def refresh_monitor_addresses(self):
         """刷新监控地址列表（从地址管理器重新获取）"""
-        self.monitor_addresses = self.address_manager.get_whitelist_addresses()
+        self.monitor_addresses = os.getenv('MONITOR_ADDRESSES', '').split(',')
+        self.monitor_addresses = [addr.strip() for addr in self.monitor_addresses if addr.strip()]
         self.logger.info(f"监控地址已刷新: {self.monitor_addresses}")
     
     def get_monitor_addresses(self) -> List[str]:
