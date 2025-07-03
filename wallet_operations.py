@@ -237,11 +237,12 @@ class TronWallet:
             # 主动查询链上状态
             import time
             tx_info = None
-            for _ in range(10):
+            for _ in range(20):
                 tx_info = self.tron.get_transaction_info(txid)
                 if tx_info and 'receipt' in tx_info:
                     break
                 time.sleep(1)
+            self.logger.info(f"TRX转账链上tx_info: {tx_info}")
             if tx_info and tx_info.get('receipt', {}).get('result') == 'SUCCESS':
                 self.logger.info(f"TRX转账成功: {amount} TRX -> {to_address}")
                 return {
@@ -251,10 +252,13 @@ class TronWallet:
                     'to_address': to_address,
                     'from_address': from_address
                 }
-            else:
-                error_msg = tx_info.get('receipt', {}).get('result') if tx_info else '未知错误'
+            elif tx_info and 'receipt' in tx_info:
+                error_msg = tx_info.get('receipt', {}).get('result')
                 self.logger.error(f"TRX转账链上失败: {error_msg}")
                 return {'success': False, 'error': f'链上执行失败: {error_msg}'}
+            else:
+                self.logger.error(f"TRX转账链上确认超时或状态未知: {tx_info}")
+                return {'success': False, 'error': '链上确认超时或状态未知，请稍后在区块浏览器查询'}
         except Exception as e:
             self.logger.error(f"TRX转账失败: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}
@@ -290,11 +294,12 @@ class TronWallet:
             # 主动查询链上状态
             import time
             tx_info = None
-            for _ in range(10):
+            for _ in range(20):
                 tx_info = self.tron.get_transaction_info(txid)
                 if tx_info and 'receipt' in tx_info:
                     break
                 time.sleep(1)
+            self.logger.info(f"USDT转账链上tx_info: {tx_info}")
             if tx_info and tx_info.get('receipt', {}).get('result') == 'SUCCESS':
                 self.logger.info(f"USDT转账成功: {amount} USDT -> {to_address}")
                 return {
@@ -304,10 +309,13 @@ class TronWallet:
                     'to_address': to_address,
                     'from_address': from_address
                 }
-            else:
-                error_msg = tx_info.get('receipt', {}).get('result') if tx_info else '未知错误'
+            elif tx_info and 'receipt' in tx_info:
+                error_msg = tx_info.get('receipt', {}).get('result')
                 self.logger.error(f"USDT转账链上失败: {error_msg}")
                 return {'success': False, 'error': f'链上执行失败: {error_msg}'}
+            else:
+                self.logger.error(f"USDT转账链上确认超时或状态未知: {tx_info}")
+                return {'success': False, 'error': '链上确认超时或状态未知，请稍后在区块浏览器查询'}
         except Exception as e:
             self.logger.error(f"USDT转账失败: {e}")
             return {'success': False, 'error': str(e)}
