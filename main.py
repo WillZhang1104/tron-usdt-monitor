@@ -172,14 +172,13 @@ class TronMonitorApp:
         self.running = True
         self.logger.info("启动简化Tron监控应用...")
 
-        # 初始化并启动 Telegram 机器人
         await self.telegram_bot.application.initialize()
         await self.telegram_bot.application.start()
 
-        # 启动监控任务
-        monitor_task = asyncio.create_task(self.start_monitoring())
+        # 启动后主动推送监控信息
+        await self.telegram_bot.send_startup_info()
 
-        # 让机器人一直运行，直到收到终止信号
+        monitor_task = asyncio.create_task(self.start_monitoring())
         try:
             await monitor_task
         finally:

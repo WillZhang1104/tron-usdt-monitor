@@ -439,6 +439,33 @@ WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
         elif isinstance(context.error, TimedOut):
             self.logger.error("请求超时")
     
+    async def send_startup_info(self):
+        monitor_addresses = os.getenv('MONITOR_ADDRESSES', '').split(',')
+        monitor_addresses = [addr.strip() for addr in monitor_addresses if addr.strip()]
+        monitor_count = len(monitor_addresses)
+        whitelist = self.address_manager.format_whitelist()
+        commands = (
+            "/start - 显示帮助信息\n"
+            "/help - 显示详细帮助\n"
+            "/status - 显示监控状态\n"
+            "/balance - 查询监控地址余额\n"
+            "/latest - 显示最新交易\n"
+            "/whitelist - 显示白名单地址\n"
+            "/wallet_balance - 查询钱包余额\n"
+            "/transfer - 转账到白名单地址"
+        )
+        msg = (
+            f"🤖 机器人已启动！\n\n"
+            f"📡 当前监控地址数量：{monitor_count}\n\n"
+            f"{whitelist}\n"
+            f"📋 可用命令：\n{commands}"
+        )
+        for user_id in self.allowed_users:
+            try:
+                await self.application.bot.send_message(chat_id=user_id, text=msg)
+            except Exception as e:
+                self.logger.error(f"推送启动信息失败: {e}")
+
     def run(self):
         """运行机器人"""
         try:
