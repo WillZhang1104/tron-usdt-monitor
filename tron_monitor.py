@@ -1,0 +1,246 @@
+import os
+import time
+import logging
+import json
+import requests
+from typing import List, Dict, Optional
+from tronpy import Tron
+from tronpy.providers import HTTPProvider
+from tronpy.contract import Contract
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
+
+class TronUSDTMonitor:
+    """Tron链USDT监控器"""
+    
+    def __init__(self):
+        self.tron = Tron(
+            provider=HTTPProvider(os.getenv('TRON_NODE_URL', 'https://api.trongrid.io'))
+        )
+        
+        # USDT合约地址 (Tron主网)
+        self.usdt_contract_address = os.getenv('USDT_CONTRACT_ADDRESS', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t')
+        self.usdt_contract = self.tron.get_contract(self.usdt_contract_address)
+        
+        # 监控地址列表
+        self.monitor_addresses = os.getenv('MONITOR_ADDRESSES', '').split(',')
+        self.monitor_addresses = [addr.strip() for addr in self.monitor_addresses if addr.strip()]
+        
+        # 记录已处理的交易
+        self.processed_transactions = set()
+        
+        # 余额缓存
+        self.balance_cache = {}
+        self.cache_timeout = 30  # 30秒缓存
+        
+        # 设置日志
+        logging.basicConfig(
+            level=getattr(logging, os.getenv('LOG_LEVEL', 'INFO')),
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        self.logger = logging.getLogger(__name__)
+        
+        self.logger.info(f"初始化Tron监控器，监控地址: {self.monitor_addresses}")
+    
+    def _make_api_request(self, url: str, params: dict = None, max_retries: int = 3) -> Optional[dict]:
+        """发送API请求，带重试机制"""
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'TronUSDTMonitor/1.0'
+        }
+        
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(url, params=params, headers=headers, timeout=10)
+                response.raise_for_status()
+                return response.json()
+            except requests.exceptions.RequestException as e:
+                self.logger.warning(f"API请求失败 (尝试 {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)  # 指数退避
+                else:
+                    self.logger.error(f"API请求最终失败: {e}")
+                    return None
+    
+    def get_usdt_transfers(self, address: str, limit: int = 50) -> List[Dict]:
+        """获取指定地址的USDT转账记录"""
+        try:
+            transfers = []
+            
+            # 使用TronGrid API获取TRC20转账记录
+            api_url = "https://api.trongrid.io/v1/accounts/{}/transactions/trc20".format(address)
+            params = {
+                'limit': limit,
+                'contract_address': self.usdt_contract_address,
+                'only_to': 'true'  # 只获取转入交易
+            }
+            
+            data = self._make_api_request(api_url, params)
+            if not data or 'data' not in data:
+                self.logger.warning(f"无法获取地址 {address} 的交易数据")
+                return []
+            
+            for tx in data['data']:
+                if tx.get('to') == address:
+                    transfer_info = {
+                        'txid': tx['transaction_id'],
+                        'from': tx.get('from'),
+                        'to': tx.get('to'),
+                        'amount': float(tx.get('value', 0)) / 1_000_000,  # USDT有6位小数
+                        'timestamp': tx.get('block_timestamp', 0),
+                        'block': tx.get('block', 0)
+                    }
+                    transfers.append(transfer_info)
+            
+            return transfers
+            
+        except Exception as e:
+            self.logger.error(f"获取USDT转账记录失败: {e}")
+            return []
+    
+    def get_latest_transfer(self, address: str) -> Optional[Dict]:
+        """获取指定地址的最新一笔转入交易"""
+        try:
+            transfers = self.get_usdt_transfers(address, limit=1)
+            if transfers:
+                return transfers[0]
+            return None
+        except Exception as e:
+            self.logger.error(f"获取最新交易失败: {e}")
+            return None
+    
+    def check_new_transfers(self) -> List[Dict]:
+        """检查新的USDT转入交易"""
+        new_transfers = []
+        
+        for address in self.monitor_addresses:
+            try:
+                transfers = self.get_usdt_transfers(address, limit=20)
+                
+                for transfer in transfers:
+                    tx_id = transfer['txid']
+                    
+                    if tx_id not in self.processed_transactions:
+                        self.processed_transactions.add(tx_id)
+                        new_transfers.append(transfer)
+                        self.logger.info(f"发现新交易: {tx_id}, 金额: {transfer['amount']} USDT")
+                
+            except Exception as e:
+                self.logger.error(f"检查地址 {address} 失败: {e}")
+        
+        return new_transfers
+    
+    def format_transfer_message(self, transfer: Dict) -> str:
+        """格式化转账消息"""
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(transfer['timestamp'] / 1000))
+        
+        message = f"🔔 新的USDT入账通知\n\n"
+        message += f"💰 金额: {transfer['amount']:,.2f} USDT\n"
+        message += f"📤 发送方: {transfer['from']}\n"
+        message += f"📥 接收方: {transfer['to']}\n"
+        message += f"🕐 时间: {timestamp}\n"
+        message += f"🔗 交易哈希: {transfer['txid']}\n"
+        message += f"📊 区块: {transfer['block']}"
+        
+        return message
+    
+    def get_address_balance(self, address: str) -> float:
+        """获取地址的USDT余额"""
+        try:
+            # 检查缓存
+            current_time = time.time()
+            if address in self.balance_cache:
+                cached_balance, cache_time = self.balance_cache[address]
+                if current_time - cache_time < self.cache_timeout:
+                    return cached_balance
+            
+            # 使用合约方法获取余额
+            balance = self.usdt_contract.functions.balanceOf(address)
+            balance_float = float(balance) / 1_000_000  # USDT有6位小数
+            
+            # 更新缓存
+            self.balance_cache[address] = (balance_float, current_time)
+            
+            return balance_float
+            
+        except Exception as e:
+            self.logger.error(f"获取余额失败: {e}")
+            # 如果合约调用失败，尝试使用API
+            try:
+                api_url = f"https://api.trongrid.io/v1/accounts/{address}/tokens/trc20"
+                params = {'contract_address': self.usdt_contract_address}
+                
+                data = self._make_api_request(api_url, params)
+                if data and 'data' in data and data['data']:
+                    balance = float(data['data'][0].get('balance', 0)) / 1_000_000
+                    self.balance_cache[address] = (balance, current_time)
+                    return balance
+            except Exception as api_e:
+                self.logger.error(f"API获取余额也失败: {api_e}")
+            
+            return 0.0
+    
+    def add_monitor_address(self, address: str) -> bool:
+        """添加监控地址"""
+        try:
+            # 验证地址格式
+            if not address.startswith('T') or len(address) != 34:
+                return False
+            
+            if address not in self.monitor_addresses:
+                self.monitor_addresses.append(address)
+                # 更新环境变量
+                self._update_env_addresses()
+                self.logger.info(f"添加监控地址: {address}")
+                return True
+            return False
+        except Exception as e:
+            self.logger.error(f"添加监控地址失败: {e}")
+            return False
+    
+    def remove_monitor_address(self, address: str) -> bool:
+        """删除监控地址"""
+        try:
+            if address in self.monitor_addresses:
+                self.monitor_addresses.remove(address)
+                # 更新环境变量
+                self._update_env_addresses()
+                self.logger.info(f"删除监控地址: {address}")
+                return True
+            return False
+        except Exception as e:
+            self.logger.error(f"删除监控地址失败: {e}")
+            return False
+    
+    def _update_env_addresses(self):
+        """更新环境变量中的地址列表"""
+        try:
+            # 读取当前.env文件
+            env_path = '.env'
+            if os.path.exists(env_path):
+                with open(env_path, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                
+                # 更新MONITOR_ADDRESSES行
+                updated = False
+                for i, line in enumerate(lines):
+                    if line.startswith('MONITOR_ADDRESSES='):
+                        lines[i] = f'MONITOR_ADDRESSES={",".join(self.monitor_addresses)}\n'
+                        updated = True
+                        break
+                
+                if not updated:
+                    lines.append(f'MONITOR_ADDRESSES={",".join(self.monitor_addresses)}\n')
+                
+                # 写回文件
+                with open(env_path, 'w', encoding='utf-8') as f:
+                    f.writelines(lines)
+                    
+        except Exception as e:
+            self.logger.error(f"更新环境变量失败: {e}")
+    
+    def get_monitor_addresses(self) -> List[str]:
+        """获取当前监控地址列表"""
+        return self.monitor_addresses.copy() 

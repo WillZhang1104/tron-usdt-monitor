@@ -1,0 +1,71 @@
+# 环境变量文件（包含敏感信息）
+.env
+.env.local
+.env.production
+
+# Python缓存文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 虚拟环境
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 日志文件
+*.log
+logs/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 备份文件
+*.backup
+*.bak
+*.tmp
+
+# 测试文件
+test_*.py
+*_test.py
+
+# 配置文件（如果包含敏感信息）
+config.env
+config.env.example
+
+# SSH密钥
+*.pem
+*.key
+
+# 其他
+*.pid
+*.seed
+*.pid.lock 
