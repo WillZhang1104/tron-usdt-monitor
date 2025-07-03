@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 # 导入自定义模块
 from tron_monitor import TronUSDTMonitor
-from wallet_operations import WalletOperations
+from wallet_operations import TronWallet
 from address_manager import AddressManager
 
 # 加载环境变量
@@ -39,7 +39,7 @@ class TelegramBot:
         # 初始化组件
         self.address_manager = AddressManager()
         self.tron_monitor = TronUSDTMonitor()
-        self.wallet_operations = WalletOperations()
+        self.wallet_operations = TronWallet()
         
         # 初始化机器人
         self.application = Application.builder().token(self.bot_token).build()
@@ -256,11 +256,19 @@ WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
         try:
             await update.message.reply_text("🔄 正在查询钱包余额，请稍候...")
             
-            # 查询TRX余额
-            trx_balance = self.wallet_operations.get_trx_balance()
+            # 获取私钥
+            private_key = self.wallet_operations._get_private_key()
+            if not private_key:
+                await update.message.reply_text("❌ 未配置钱包私钥")
+                return
             
-            # 查询USDT余额
-            usdt_balance = self.wallet_operations.get_usdt_balance()
+            # 获取钱包地址
+            wallet_address = private_key.public_key.to_base58check_address()
+            
+            # 查询余额
+            balance = self.wallet_operations.get_balance(wallet_address)
+            trx_balance = balance['TRX']
+            usdt_balance = balance['USDT']
             
             balance_text = f"""
 💰 钱包余额
@@ -381,7 +389,11 @@ WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
                     
                     try:
                         # 执行转账
-                        txid = self.wallet_operations.transfer_usdt(target_address, amount, remark)
+                        result = self.wallet_operations.transfer_usdt(target_address, amount)
+                        if result['success']:
+                            txid = result['txid']
+                        else:
+                            raise Exception(result['error'])
                         
                         # 获取地址信息
                         addr_info = self.address_manager.get_address_info(target_address)

@@ -39,6 +39,21 @@ class TronWallet:
         
         self.logger.info("Tron钱包操作模块初始化完成")
     
+    def _make_api_request(self, url: str, params: dict = None) -> Optional[dict]:
+        """发送API请求"""
+        try:
+            import requests
+            headers = {
+                'Accept': 'application/json',
+                'User-Agent': 'TronWallet/1.0'
+            }
+            response = requests.get(url, params=params, headers=headers, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            self.logger.error(f"API请求失败: {e}")
+            return None
+    
     def _get_private_key(self) -> Optional[PrivateKey]:
         """获取私钥（支持加密存储）"""
         try:
