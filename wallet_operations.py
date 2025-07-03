@@ -236,6 +236,7 @@ class TronWallet:
             
             # 等待交易确认
             result = txn.wait()
+            self.logger.error(f"TRX转账wait返回: {result}")
             
             if result.get('receipt', {}).get('result') == 'SUCCESS':
                 self.logger.info(f"TRX转账成功: {amount} TRX -> {to_address}")
@@ -247,7 +248,7 @@ class TronWallet:
                     'from_address': from_address
                 }
             else:
-                return {'success': False, 'error': '交易失败'}
+                return {'success': False, 'error': str(result)}
                 
         except Exception as e:
             self.logger.error(f"TRX转账失败: {e}")
