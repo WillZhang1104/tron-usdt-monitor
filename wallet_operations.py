@@ -230,21 +230,31 @@ class TronWallet:
             )
             signed_txn = txn.build().sign(self.private_key)
             result = signed_txn.broadcast()
-            self.logger.info(f"TRX转账txid: {getattr(signed_txn, 'txid', None)}")
+            txid = getattr(signed_txn, 'txid', None)
+            self.logger.info(f"TRX转账txid: {txid}")
             self.logger.info(f"TRX转账raw_data: {getattr(signed_txn, 'raw_data', None)}")
             self.logger.info(f"TRX转账result: {result}")
-            if isinstance(result, dict) and result.get('result'):
+            # 主动查询链上状态
+            import time
+            tx_info = None
+            for _ in range(10):
+                tx_info = self.tron.get_transaction_info(txid)
+                if tx_info and 'receipt' in tx_info:
+                    break
+                time.sleep(1)
+            if tx_info and tx_info.get('receipt', {}).get('result') == 'SUCCESS':
                 self.logger.info(f"TRX转账成功: {amount} TRX -> {to_address}")
                 return {
                     'success': True,
-                    'txid': getattr(signed_txn, 'txid', None),
+                    'txid': txid,
                     'amount': amount,
                     'to_address': to_address,
                     'from_address': from_address
                 }
             else:
-                self.logger.error(f"TRX转账失败: {result}")
-                return {'success': False, 'error': str(result)}
+                error_msg = tx_info.get('receipt', {}).get('result') if tx_info else '未知错误'
+                self.logger.error(f"TRX转账链上失败: {error_msg}")
+                return {'success': False, 'error': f'链上执行失败: {error_msg}'}
         except Exception as e:
             self.logger.error(f"TRX转账失败: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}
@@ -260,30 +270,44 @@ class TronWallet:
             balance = self.get_balance(from_address)
             if balance['USDT'] < amount:
                 return {'success': False, 'error': f'余额不足: {balance["USDT"]} < {amount}'}
-            energy_needed = 30_000
             resource = self.tron.get_account_resource(from_address)
-            if resource.get('EnergyLimit', 0) < energy_needed:
-                self.logger.error(f"能源不足: {resource.get('EnergyLimit', 0)} < {energy_needed}")
-                return {'success': False, 'error': '能源不足'}
+            energy_limit = resource.get('EnergyLimit', 0)
+            energy_used = resource.get('EnergyUsed', 0)
+            available_energy = energy_limit - energy_used
+            self.logger.info(f'USDT转账可用能量: {available_energy}')
+            energy_needed = 50000
+            if available_energy < energy_needed:
+                self.logger.error(f"能源不足: {available_energy} < {energy_needed}")
+                return {'success': False, 'error': f'能源不足: {available_energy} < {energy_needed}'}
             txn = self.usdt_contract.functions.transfer(
                 to_address,
                 int(amount * 1_000_000)
-            ).with_owner(from_address).fee_limit(10_000_000).build().sign(self.private_key)
+            ).with_owner(from_address).fee_limit(20_000_000).build().sign(self.private_key)
             result = txn.broadcast()
-            self.logger.info(f"USDT转账txid: {getattr(txn, 'txid', None)}")
+            txid = getattr(txn, 'txid', None)
+            self.logger.info(f"USDT转账txid: {txid}")
             self.logger.info(f"USDT转账result: {result}")
-            if isinstance(result, dict) and result.get('result'):
+            # 主动查询链上状态
+            import time
+            tx_info = None
+            for _ in range(10):
+                tx_info = self.tron.get_transaction_info(txid)
+                if tx_info and 'receipt' in tx_info:
+                    break
+                time.sleep(1)
+            if tx_info and tx_info.get('receipt', {}).get('result') == 'SUCCESS':
                 self.logger.info(f"USDT转账成功: {amount} USDT -> {to_address}")
                 return {
                     'success': True,
-                    'txid': getattr(txn, 'txid', None),
+                    'txid': txid,
                     'amount': amount,
                     'to_address': to_address,
                     'from_address': from_address
                 }
             else:
-                self.logger.error(f"USDT转账失败: {result}")
-                return {'success': False, 'error': str(result)}
+                error_msg = tx_info.get('receipt', {}).get('result') if tx_info else '未知错误'
+                self.logger.error(f"USDT转账链上失败: {error_msg}")
+                return {'success': False, 'error': f'链上执行失败: {error_msg}'}
         except Exception as e:
             self.logger.error(f"USDT转账失败: {e}")
             return {'success': False, 'error': str(e)}
