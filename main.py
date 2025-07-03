@@ -192,11 +192,10 @@ def start_monitoring_task(app):
     loop.run_until_complete(app.start_monitoring())
 
 async def on_startup(application):
-    # 只推送你想要的启动信息，不推送最新交易
-    await application.bot.send_message(
-        chat_id=8171033557,
-        text="机器人已启动，监控地址xxx...\n可用命令：/balance /latest ..."
-    )
+    # 调用telegram_bot的send_startup_info方法
+    bot = application.bot_data.get("telegram_bot_instance")
+    if bot:
+        await bot.send_startup_info()
 
 def main():
     """主函数"""
@@ -233,6 +232,8 @@ def main():
         # 创建并运行应用
         app = TronMonitorApp()
         
+        # 存储telegram_bot实例，供on_startup使用
+        app.telegram_bot.application.bot_data["telegram_bot_instance"] = app.telegram_bot
         # 启动监控任务
         monitor_thread = threading.Thread(target=start_monitoring_task, args=(app,))
         monitor_thread.start()
