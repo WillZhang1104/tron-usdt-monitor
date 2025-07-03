@@ -239,7 +239,7 @@ class TronWallet:
                 int(amount * 1_000_000)  # 金额（Sun）
             )
             # 构建并签名
-            signed_txn = txn.build().sign(self.tron.private_key)
+            signed_txn = txn.build().sign(private_key)
             # 广播交易
             result = signed_txn.broadcast()
             # 日志输出
