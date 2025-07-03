@@ -289,9 +289,9 @@ class TronWallet:
             ).with_owner(from_address).fee_limit(10_000_000).build().sign(private_key)
             
             # 发送交易
-            result = txn.broadcast().wait()
-            
-            if result.get('receipt', {}).get('result') == 'SUCCESS':
+            result = txn.broadcast()
+            # 判断交易是否成功
+            if isinstance(result, dict) and result.get('result'):
                 self.logger.info(f"USDT转账成功: {amount} USDT -> {to_address}")
                 return {
                     'success': True,
