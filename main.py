@@ -14,7 +14,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # 导入自定义模块
-from tron_monitor import TronMonitor
+from tron_monitor import TronUSDTMonitor
 from telegram_bot import TelegramBot
 
 # 加载环境变量
@@ -28,7 +28,7 @@ class TronMonitorApp:
         self.running = False
         
         # 初始化组件
-        self.tron_monitor = TronMonitor()
+        self.tron_monitor = TronUSDTMonitor()
         self.telegram_bot = TelegramBot()
         
         # 设置信号处理
@@ -66,7 +66,8 @@ class TronMonitorApp:
                         
                         try:
                             # 检查新交易
-                            new_transactions = await self.tron_monitor.check_new_transactions(address)
+                            new_transfers = self.tron_monitor.check_new_transfers()
+                            new_transactions = [tx for tx in new_transfers if tx.get('to') == address]
                             
                             if new_transactions:
                                 for tx in new_transactions:

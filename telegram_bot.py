@@ -15,7 +15,7 @@ from telegram.error import Unauthorized, NetworkError, TimedOut
 from dotenv import load_dotenv
 
 # 导入自定义模块
-from tron_monitor import TronMonitor
+from tron_monitor import TronUSDTMonitor
 from wallet_operations import WalletOperations
 from address_manager import AddressManager
 
@@ -38,7 +38,7 @@ class TelegramBot:
         
         # 初始化组件
         self.address_manager = AddressManager()
-        self.tron_monitor = TronMonitor()
+        self.tron_monitor = TronUSDTMonitor()
         self.wallet_operations = WalletOperations()
         
         # 初始化机器人
@@ -177,7 +177,7 @@ WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
             
             for address in monitor_addresses:
                 try:
-                    balance = await self.tron_monitor.get_usdt_balance(address)
+                    balance = self.tron_monitor.get_address_balance(address)
                     balance_text += f"📍 {address[:10]}...{address[-10:]}\n"
                     balance_text += f"   💵 USDT: {balance:,.2f}\n\n"
                 except Exception as e:
@@ -212,7 +212,7 @@ WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
             
             for address in monitor_addresses:
                 try:
-                    latest_tx = await self.tron_monitor.get_latest_transaction(address)
+                    latest_tx = self.tron_monitor.get_latest_transfer(address)
                     if latest_tx:
                         latest_text += f"📍 {address[:10]}...{address[-10:]}\n"
                         latest_text += f"   🕐 时间: {latest_tx['timestamp']}\n"
@@ -257,10 +257,10 @@ WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
             await update.message.reply_text("🔄 正在查询钱包余额，请稍候...")
             
             # 查询TRX余额
-            trx_balance = await self.wallet_operations.get_trx_balance()
+            trx_balance = self.wallet_operations.get_trx_balance()
             
             # 查询USDT余额
-            usdt_balance = await self.wallet_operations.get_usdt_balance()
+            usdt_balance = self.wallet_operations.get_usdt_balance()
             
             balance_text = f"""
 💰 钱包余额
@@ -381,7 +381,7 @@ WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
                     
                     try:
                         # 执行转账
-                        txid = await self.wallet_operations.transfer_usdt(target_address, amount, remark)
+                        txid = self.wallet_operations.transfer_usdt(target_address, amount, remark)
                         
                         # 获取地址信息
                         addr_info = self.address_manager.get_address_info(target_address)
