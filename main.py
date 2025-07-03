@@ -172,12 +172,19 @@ class TronMonitorApp:
         self.running = True
         self.logger.info("启动简化Tron监控应用...")
 
-        # 启动监控和机器人并发运行
-        monitor_task = asyncio.create_task(self.start_monitoring())
-        bot_task = asyncio.create_task(self.telegram_bot.application.run_polling())
+        # 初始化并启动 Telegram 机器人
+        await self.telegram_bot.application.initialize()
+        await self.telegram_bot.application.start()
 
-        # 等待两个任务都完成（实际上会一直运行，直到收到终止信号）
-        await asyncio.gather(monitor_task, bot_task)
+        # 启动监控任务
+        monitor_task = asyncio.create_task(self.start_monitoring())
+
+        # 让机器人一直运行，直到收到终止信号
+        try:
+            await monitor_task
+        finally:
+            await self.telegram_bot.application.stop()
+            await self.telegram_bot.application.shutdown()
 
 def main():
     """主函数"""
