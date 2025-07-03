@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
-from telegram.error import Unauthorized, NetworkError, TimedOut
+from telegram.error import Forbidden, NetworkError, TimedOut
 from dotenv import load_dotenv
 
 # 导入自定义模块
@@ -420,7 +420,7 @@ WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
         """错误处理器"""
         self.logger.error(f"机器人错误: {context.error}")
         
-        if isinstance(context.error, Unauthorized):
+        if isinstance(context.error, Forbidden):
             self.logger.error("机器人token无效或已被删除")
         elif isinstance(context.error, NetworkError):
             self.logger.error("网络错误")
