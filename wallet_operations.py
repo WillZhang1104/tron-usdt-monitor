@@ -11,7 +11,7 @@ from typing import Optional, Dict, Any
 from tronpy import Tron
 from tronpy.providers import HTTPProvider
 from tronpy.contract import Contract
-from tronpy.keys import PrivateKey
+from tronpy.keys import PrivateKey, is_base58check_address
 from dotenv import load_dotenv
 from address_manager import AddressManager
 
@@ -210,6 +210,10 @@ class TronWallet:
     def transfer_trx(self, to_address: str, amount: float) -> Dict[str, Any]:
         """转账TRX"""
         try:
+            # 新增：严格的TRON主网地址合法性校验
+            if not isinstance(to_address, str) or not is_base58check_address(to_address.strip()):
+                self.logger.error(f"transfer_trx: 非法TRON主网地址: {repr(to_address)}")
+                return {'success': False, 'error': f'非法TRON主网地址: {repr(to_address)}'}
             # 验证参数
             if not self._validate_transfer(to_address, amount, 'TRX'):
                 return {'success': False, 'error': '参数验证失败'}
