@@ -73,7 +73,12 @@ class TronWallet:
                 try:
                     gpg_passphrase = os.getenv('GPG_PASSPHRASE')
                     result = subprocess.run(
-                        ['gpg', '--batch', '--yes', f'--passphrase={gpg_passphrase}', '--decrypt', encrypted_file],
+                        [
+                            'gpg', '--batch', '--yes',
+                            '--pinentry-mode', 'loopback',
+                            f'--passphrase={gpg_passphrase}',
+                            '--decrypt', encrypted_file
+                        ],
                         capture_output=True,
                         text=True,
                         check=True
