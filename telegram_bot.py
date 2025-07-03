@@ -49,6 +49,11 @@ class TelegramBot:
         self.application.add_handler(CommandHandler("add", self.add_address_command))
         self.application.add_handler(CommandHandler("remove", self.remove_address_command))
         self.application.add_handler(CommandHandler("list", self.list_addresses_command))
+        
+        # 转账命令（需要谨慎使用）
+        self.application.add_handler(CommandHandler("transfer_trx", self.transfer_trx_command))
+        self.application.add_handler(CommandHandler("transfer_usdt", self.transfer_usdt_command))
+        self.application.add_handler(CommandHandler("wallet_balance", self.wallet_balance_command))
     
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理 /start 命令"""
@@ -63,6 +68,9 @@ class TelegramBot:
             "/list - 查看监控地址列表\n"
             "/add <地址> - 添加监控地址\n"
             "/remove <地址> - 删除监控地址\n"
+            "/wallet_balance - 查看钱包余额\n"
+            "/transfer_trx <地址> <金额> - 转账TRX\n"
+            "/transfer_usdt <地址> <金额> - 转账USDT\n"
             "/settings - 查看设置\n\n"
             "🔔 机器人会自动监控指定地址的USDT入账情况，"
             "一旦有新交易就会发送通知。"
@@ -257,6 +265,87 @@ class TelegramBot:
             
         except Exception as e:
             await update.message.reply_text(f"❌ 获取地址列表失败: {str(e)}")
+    
+    async def wallet_balance_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """处理 /wallet_balance 命令 - 查看钱包余额"""
+        try:
+            from wallet_operations import TronWallet
+            
+            wallet = TronWallet()
+            private_key = wallet._get_private_key()
+            
+            if not private_key:
+                await update.message.reply_text("❌ 未配置钱包私钥")
+                return
+            
+            address = private_key.public_key.to_base58check_address()
+            balance = wallet.get_balance(address)
+            
+            balance_message = f"💰 钱包余额\n\n"
+            balance_message += f"📍 地址: {address[:10]}...{address[-10:]}\n"
+            balance_message += f"⚡ TRX: {balance['TRX']:,.2f}\n"
+            balance_message += f"💵 USDT: {balance['USDT']:,.2f}"
+            
+            await update.message.reply_text(balance_message)
+            
+        except Exception as e:
+            await update.message.reply_text(f"❌ 获取钱包余额失败: {str(e)}")
+    
+    async def transfer_trx_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """处理 /transfer_trx 命令 - 转账TRX"""
+        try:
+            if len(context.args) != 2:
+                await update.message.reply_text(
+                    "❌ 参数错误\n"
+                    "用法: /transfer_trx <地址> <金额>\n"
+                    "示例: /transfer_trx TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t 10"
+                )
+                return
+            
+            to_address = context.args[0].strip()
+            amount = float(context.args[1])
+            
+            from wallet_operations import TronWallet
+            wallet = TronWallet()
+            
+            # 执行转账
+            result = wallet.transfer_trx(to_address, amount)
+            message = wallet.format_transfer_message(result, 'TRX')
+            
+            await update.message.reply_text(message)
+            
+        except ValueError:
+            await update.message.reply_text("❌ 金额格式错误，请输入有效数字")
+        except Exception as e:
+            await update.message.reply_text(f"❌ TRX转账失败: {str(e)}")
+    
+    async def transfer_usdt_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """处理 /transfer_usdt 命令 - 转账USDT"""
+        try:
+            if len(context.args) != 2:
+                await update.message.reply_text(
+                    "❌ 参数错误\n"
+                    "用法: /transfer_usdt <地址> <金额>\n"
+                    "示例: /transfer_usdt TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t 100"
+                )
+                return
+            
+            to_address = context.args[0].strip()
+            amount = float(context.args[1])
+            
+            from wallet_operations import TronWallet
+            wallet = TronWallet()
+            
+            # 执行转账
+            result = wallet.transfer_usdt(to_address, amount)
+            message = wallet.format_transfer_message(result, 'USDT')
+            
+            await update.message.reply_text(message)
+            
+        except ValueError:
+            await update.message.reply_text("❌ 金额格式错误，请输入有效数字")
+        except Exception as e:
+            await update.message.reply_text(f"❌ USDT转账失败: {str(e)}")
     
     async def settings_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理 /settings 命令"""

@@ -64,6 +64,12 @@ config.env.example
 # SSH密钥
 *.pem
 *.key
+ssh pw.txt
+
+# 钱包私钥文件
+private_key*
+*.gpg
+.env
 
 # 其他
 *.pid
