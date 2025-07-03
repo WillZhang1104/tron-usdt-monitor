@@ -202,33 +202,57 @@ python3 main.py
 
 ### 常见问题
 
-1. **机器人无响应**
+1. **导入错误 (ImportError)**
+   ```bash
+   # 运行诊断脚本
+   chmod +x diagnose_bot.sh
+   ./diagnose_bot.sh
+   
+   # 运行修复脚本
+   chmod +x fix_import.sh
+   ./fix_import.sh
+   ```
+
+2. **机器人无响应**
    - 检查 `TELEGRAM_BOT_TOKEN` 是否正确
+   - 确认 `ALLOWED_USERS` 配置正确
    - 确认机器人已启动并与用户对话
 
-2. **余额显示为0**
+3. **余额显示为0**
    - 检查网络连接
    - 确认地址格式正确
    - 查看日志文件
 
-3. **转账失败**
+4. **转账失败**
    - 确认目标地址在白名单中
    - 检查钱包余额是否充足
    - 验证私钥是否正确解密
 
-4. **监控不工作**
+5. **监控不工作**
    - 检查 `MONITOR_ADDRESSES` 配置
    - 确认网络连接正常
    - 查看监控日志
+
+### 快速修复
+
+```bash
+# 下载并运行完整修复脚本
+wget https://raw.githubusercontent.com/你的用户名/你的仓库名/main/update_server_fix.sh
+chmod +x update_server_fix.sh
+./update_server_fix.sh
+```
 
 ### 日志查看
 
 ```bash
 # 查看实时日志
-tail -f tron_monitor.log
+tail -f /var/log/usdt-monitor.log
 
 # 查看错误日志
-grep ERROR tron_monitor.log
+grep ERROR /var/log/usdt-monitor.log
+
+# 查看服务状态
+./manage.sh status
 ```
 
 ## 更新指南
