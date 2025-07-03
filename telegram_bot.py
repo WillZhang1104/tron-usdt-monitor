@@ -4,7 +4,8 @@ import asyncio
 from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from telegram.error import TelegramError, Unauthorized, BadRequest
+from telegram.error import TelegramError, BadRequest
+from telegram.constants import ParseMode
 from dotenv import load_dotenv
 
 # 加载环境变量
@@ -290,9 +291,6 @@ class TelegramBot:
             self.logger.info("通知消息发送成功")
             return True
             
-        except Unauthorized as e:
-            self.logger.error(f"Telegram认证失败: {e}")
-            return False
         except BadRequest as e:
             self.logger.error(f"Telegram请求错误: {e}")
             return False
