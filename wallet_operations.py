@@ -234,9 +234,10 @@ class TronWallet:
                 return {'success': False, 'error': f'非法TRON地址: {repr(to_address)}'}
             # 创建交易
             txn = self.tron.trx.transfer(
-                to_address,
-                int(amount * 1_000_000),  # 转换为最小单位
-                private_key
+                from_address,   # 发送方地址
+                to_address,     # 接收方地址
+                int(amount * 1_000_000),  # 金额（Sun）
+                private_key     # 私钥
             )
             self.logger.error(f"TRX转账txn.inspect: {txn.inspect()}")
             # 等待交易确认
