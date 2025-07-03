@@ -1,299 +1,279 @@
-# Tron链USDT监控Telegram机器人
+# Tron地址监控机器人
 
-一个用于监控Tron区块链上USDT转账的Telegram机器人，支持实时通知、余额查询、交易历史等功能。
+一个简化的Tron链USDT监控Telegram机器人，支持地址监控、余额查询、转账功能。
 
-## 🆕 最新更新 (v2.0)
+## 功能特性
 
-### 修复的问题
-1. **✅ 修复监控通知问题** - 改进了交易检查逻辑，使用更可靠的TronGrid API
-2. **✅ 修复余额显示问题** - 添加了缓存机制和重试逻辑，解决余额显示为0的问题
-3. **✅ 修复401错误** - 改进了Telegram API错误处理，添加了详细的异常处理
+- 🔍 **地址监控**: 自动监控指定地址的USDT入账
+- 💰 **余额查询**: 查询监控地址和钱包余额
+- 📊 **交易记录**: 查看最新交易信息
+- 💸 **安全转账**: 支持向白名单地址转账
+- 🔒 **权限控制**: 只允许授权用户使用
+- 📱 **Telegram通知**: 实时发送交易通知
 
-### 新增功能
-1. **🆕 最新交易查询** - `/latest` 命令显示每个地址的最新转入交易
-2. **🆕 地址管理** - `/add`、`/remove`、`/list` 命令管理监控地址
-3. **🆕 改进的错误处理** - 更好的API重试机制和错误提示
-4. **🆕 余额缓存** - 30秒缓存机制，提高查询效率
+## 快速开始
 
-## 🚀 功能特性
+### 1. 环境要求
 
-- 🔔 **实时监控** - 自动监控指定地址的USDT入账
-- 📱 **Telegram通知** - 实时发送交易通知到Telegram
-- 💰 **余额查询** - 快速查询地址USDT余额
-- 📊 **交易历史** - 查看最新交易记录
-- ⚙️ **地址管理** - 动态添加/删除监控地址
-- 🔧 **系统服务** - 支持systemd服务管理
-- 📈 **性能优化** - 网络优化和流量监控
-
-## 📋 可用命令
-
-| 命令 | 功能 | 示例 |
-|------|------|------|
-| `/start` | 显示欢迎信息 | `/start` |
-| `/help` | 显示帮助信息 | `/help` |
-| `/status` | 查看监控状态 | `/status` |
-| `/balance` | 查看地址余额 | `/balance` |
-| `/latest` | 查看最新交易 | `/latest` |
-| `/list` | 查看地址列表 | `/list` |
-| `/add` | 添加监控地址 | `/add TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t` |
-| `/remove` | 删除监控地址 | `/remove TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t` |
-| `/settings` | 查看设置 | `/settings` |
-
-## 🛠️ 安装部署
-
-### 环境要求
-- Ubuntu 20.04+
 - Python 3.8+
-- 2GB+ RAM
+- Ubuntu 20.04+ (推荐)
 - 稳定的网络连接
 
-### 快速部署
+### 2. 安装依赖
 
-1. **克隆项目**
 ```bash
-git clone <项目地址>
-cd 地址监控
+# 安装Python依赖
+pip install -r requirements.txt
+
+# 或使用安装脚本
+chmod +x setup_chinese.sh
+./setup_chinese.sh
 ```
 
-2. **运行部署脚本**
+### 3. 配置环境变量
+
+创建 `.env` 文件并配置以下变量：
+
 ```bash
-sudo bash deploy_ubuntu.sh
-```
-
-3. **配置环境变量**
-```bash
-nano .env
-```
-
-4. **启动服务**
-```bash
-sudo systemctl start usdt-monitor
-```
-
-### 手动安装
-
-1. **安装依赖**
-```bash
-sudo apt update
-sudo apt install python3 python3-pip git
-pip3 install -r requirements.txt
-```
-
-2. **配置环境变量**
-```bash
-cp config.env.example .env
-nano .env
-```
-
-3. **运行程序**
-```bash
-python3 main.py
-```
-
-## ⚙️ 配置说明
-
-### 环境变量配置 (.env)
-
-```env
-# Telegram配置
+# Telegram机器人配置
 TELEGRAM_BOT_TOKEN=your_bot_token_here
-TELEGRAM_CHAT_ID=your_chat_id_here
-
-# 监控配置
-MONITOR_ADDRESSES=address1,address2,address3
-MONITOR_INTERVAL=30
+ALLOWED_USERS=your_telegram_user_id
 
 # Tron网络配置
 TRON_NODE_URL=https://api.trongrid.io
 USDT_CONTRACT_ADDRESS=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
 
-# 日志配置
-LOG_LEVEL=INFO
+# 监控配置
+MONITOR_ADDRESSES=address1,address2,address3
+MONITOR_INTERVAL=30
+
+# 白名单地址配置（用于转账）
+WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
+
+# 钱包配置（可选，用于转账功能）
+WALLET_PRIVATE_KEY=your_encrypted_private_key
 ```
 
-### 获取Telegram Bot Token
+### 4. 启动服务
 
-1. 在Telegram中搜索 `@BotFather`
-2. 发送 `/newbot` 创建新机器人
-3. 按提示设置机器人名称
-4. 获取Bot Token
-
-### 获取Chat ID
-
-1. 将机器人添加到群组或直接与机器人对话
-2. 发送消息给机器人
-3. 访问 `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
-4. 查找 `chat.id` 字段
-
-## 🔧 服务管理
-
-### 使用管理脚本
 ```bash
-# 启动服务
-sudo /opt/usdt-monitor/manage.sh start
+# 启动监控和机器人
+python main.py
 
-# 停止服务
-sudo /opt/usdt-monitor/manage.sh stop
-
-# 重启服务
-sudo /opt/usdt-monitor/manage.sh restart
-
-# 查看状态
-sudo /opt/usdt-monitor/manage.sh status
-
-# 查看日志
-sudo /opt/usdt-monitor/manage.sh logs
-
-# 查看应用日志
-sudo /opt/usdt-monitor/manage.sh app-logs
-
-# 运行测试
-sudo /opt/usdt-monitor/manage.sh test
-
-# 备份配置
-sudo /opt/usdt-monitor/manage.sh backup
-
-# 查看流量
-sudo /opt/usdt-monitor/manage.sh traffic
-
-# 系统优化
-sudo /opt/usdt-monitor/manage.sh optimize
+# 或后台运行
+nohup python main.py > monitor.log 2>&1 &
 ```
 
-### 使用systemctl
+## 配置说明
+
+### 白名单地址配置
+
+在 `.env` 文件中配置 `WHITELIST_ADDRESSES`：
+
 ```bash
-# 启动服务
-sudo systemctl start usdt-monitor
-
-# 停止服务
-sudo systemctl stop usdt-monitor
-
-# 重启服务
-sudo systemctl restart usdt-monitor
-
-# 查看状态
-sudo systemctl status usdt-monitor
-
-# 查看日志
-sudo journalctl -u usdt-monitor -f
-
-# 设置开机自启
-sudo systemctl enable usdt-monitor
+# 格式：地址=别名,描述|地址=别名,描述
+WHITELIST_ADDRESSES=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t=USDT合约,官方USDT合约|TYourAddressHere=我的钱包,个人钱包地址
 ```
 
-## 🧪 测试功能
+### 监控地址配置
 
-运行测试脚本验证功能：
+在 `.env` 文件中配置 `MONITOR_ADDRESSES`：
+
 ```bash
-python3 test_fixes.py
+# 用逗号分隔多个地址，不能有空格
+MONITOR_ADDRESSES=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t,TYourAddressHere
 ```
 
-## 📊 监控和日志
+## Telegram机器人命令
 
-### 日志文件
-- 应用日志: `/opt/usdt-monitor/monitor.log`
-- 系统日志: `journalctl -u usdt-monitor`
+### 基础命令
+- `/start` - 显示帮助信息
+- `/help` - 显示详细帮助
+- `/status` - 显示监控状态
 
-### 流量监控
+### 监控命令
+- `/balance` - 查询监控地址余额
+- `/latest` - 显示最新交易记录
+- `/whitelist` - 显示白名单地址
+
+### 钱包命令
+- `/wallet_balance` - 查询钱包余额
+- `/transfer` - 转账到白名单地址
+
+### 转账使用示例
+
 ```bash
-# 查看实时流量
-vnstat -l
+# 按序号转账
+/transfer 1 100 测试转账
 
-# 查看日流量
-vnstat -d
+# 按别名转账
+/transfer 我的钱包 50
 
-# 查看月流量
-vnstat -m
+# 按地址转账
+/transfer TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t 25
 ```
 
-## 🔍 故障排除
+## 安全配置
+
+### 私钥加密存储
+
+1. 安装GPG：
+```bash
+sudo apt update
+sudo apt install gnupg
+```
+
+2. 生成密钥对：
+```bash
+gpg --gen-key
+```
+
+3. 加密私钥：
+```bash
+echo "your_private_key_here" | gpg --encrypt --recipient your_email@example.com > wallet_key.gpg
+```
+
+4. 在 `.env` 中配置：
+```bash
+WALLET_PRIVATE_KEY=wallet_key.gpg
+```
+
+### 自动化加密设置
+
+使用提供的脚本：
+```bash
+chmod +x setup_encrypted_wallet.sh
+./setup_encrypted_wallet.sh
+```
+
+## 服务器部署
+
+### Ubuntu 20.04 部署
+
+```bash
+# 下载部署脚本
+wget https://raw.githubusercontent.com/your-repo/地址监控/main/deploy_ubuntu.sh
+
+# 执行部署
+chmod +x deploy_ubuntu.sh
+./deploy_ubuntu.sh
+```
+
+### 手动部署步骤
+
+1. 更新系统：
+```bash
+sudo apt update && sudo apt upgrade -y
+```
+
+2. 安装Python：
+```bash
+sudo apt install python3 python3-pip python3-venv -y
+```
+
+3. 创建项目目录：
+```bash
+mkdir -p ~/tron_monitor
+cd ~/tron_monitor
+```
+
+4. 下载代码：
+```bash
+git clone https://github.com/your-repo/地址监控.git .
+```
+
+5. 安装依赖：
+```bash
+pip3 install -r requirements.txt
+```
+
+6. 配置环境变量：
+```bash
+cp .env.example .env
+nano .env
+```
+
+7. 启动服务：
+```bash
+python3 main.py
+```
+
+## 故障排除
 
 ### 常见问题
 
-1. **监控地址有交易但没有通知**
-   - 检查网络连接
-   - 验证Telegram Bot Token和Chat ID
-   - 查看日志文件
+1. **机器人无响应**
+   - 检查 `TELEGRAM_BOT_TOKEN` 是否正确
+   - 确认机器人已启动并与用户对话
 
 2. **余额显示为0**
-   - 程序已添加缓存和重试机制
-   - 多查询几次应该会显示正确余额
-   - 检查地址是否正确
+   - 检查网络连接
+   - 确认地址格式正确
+   - 查看日志文件
 
-3. **401 Unauthorized错误**
-   - 检查Bot Token是否正确
-   - 确认机器人没有被禁用
-   - 验证Chat ID是否正确
+3. **转账失败**
+   - 确认目标地址在白名单中
+   - 检查钱包余额是否充足
+   - 验证私钥是否正确解密
 
-4. **服务启动失败**
-   - 检查配置文件语法
-   - 验证Python依赖是否安装完整
-   - 查看系统日志
+4. **监控不工作**
+   - 检查 `MONITOR_ADDRESSES` 配置
+   - 确认网络连接正常
+   - 查看监控日志
 
-### 调试模式
+### 日志查看
 
-设置日志级别为DEBUG：
-```env
-LOG_LEVEL=DEBUG
+```bash
+# 查看实时日志
+tail -f tron_monitor.log
+
+# 查看错误日志
+grep ERROR tron_monitor.log
 ```
 
-## 📈 性能优化
+## 更新指南
 
-### 网络优化
-- 启用BBR拥塞控制
-- 优化TCP参数
-- 配置流量监控
+### 从GitHub更新
 
-### 系统优化
-- 创建swap文件
-- 配置日志轮转
-- 自动备份配置
+```bash
+# 备份当前配置
+cp .env .env.backup
 
-## 🔒 安全建议
+# 拉取最新代码
+git pull origin main
 
-1. **定期更新**
-   - 保持系统和依赖包最新
-   - 定期检查安全更新
+# 恢复配置
+cp .env.backup .env
 
-2. **访问控制**
-   - 限制服务器SSH访问
-   - 使用强密码和密钥认证
+# 重启服务
+pkill -f main.py
+python3 main.py
+```
 
-3. **监控告警**
-   - 设置系统监控
-   - 配置异常告警
+## 文件结构
 
-## 📝 更新日志
+```
+地址监控/
+├── main.py                 # 主程序
+├── telegram_bot.py         # Telegram机器人
+├── tron_monitor.py         # Tron监控模块
+├── wallet_operations.py    # 钱包操作模块
+├── address_manager.py      # 地址管理模块
+├── requirements.txt        # Python依赖
+├── .env                    # 环境变量配置
+├── setup_chinese.sh        # 中文安装脚本
+├── deploy_ubuntu.sh        # Ubuntu部署脚本
+├── setup_encrypted_wallet.sh # 钱包加密设置脚本
+└── README.md              # 说明文档
+```
 
-### v2.0 (当前版本)
-- ✅ 修复监控通知问题
-- ✅ 修复余额显示问题  
-- ✅ 修复401错误
-- 🆕 添加最新交易查询功能
-- 🆕 添加地址管理功能
-- 🆕 改进错误处理和重试机制
-- 🆕 添加余额缓存机制
-
-### v1.0
-- 🎉 初始版本发布
-- 🔔 基础监控功能
-- 📱 Telegram通知
-- 💰 余额查询
-
-## 🤝 贡献
-
-欢迎提交Issue和Pull Request！
-
-## 📄 许可证
+## 许可证
 
 MIT License
 
-## 📞 支持
+## 支持
 
-如有问题，请通过以下方式联系：
-- 提交GitHub Issue
-- 发送邮件至支持邮箱
-
----
-
-**注意**: 请确保遵守相关法律法规，本工具仅用于合法的监控目的。 
+如有问题，请查看：
+- [快速修复指南](QUICK_FIX_GUIDE.md)
+- [钱包安全指南](WALLET_SECURITY_GUIDE.md)
+- [Ubuntu部署指南](ubuntu_deploy_guide.md) 

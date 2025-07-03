@@ -8,6 +8,7 @@ from tronpy import Tron
 from tronpy.providers import HTTPProvider
 from tronpy.contract import Contract
 from dotenv import load_dotenv
+from address_manager import AddressManager
 
 # 加载环境变量
 load_dotenv()
@@ -24,9 +25,11 @@ class TronUSDTMonitor:
         self.usdt_contract_address = os.getenv('USDT_CONTRACT_ADDRESS', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t')
         self.usdt_contract = self.tron.get_contract(self.usdt_contract_address)
         
-        # 监控地址列表
-        self.monitor_addresses = os.getenv('MONITOR_ADDRESSES', '').split(',')
-        self.monitor_addresses = [addr.strip() for addr in self.monitor_addresses if addr.strip()]
+        # 初始化地址管理器
+        self.address_manager = AddressManager()
+        
+        # 获取白名单地址作为监控地址
+        self.monitor_addresses = self.address_manager.get_whitelist_addresses()
         
         # 记录已处理的交易
         self.processed_transactions = set()
@@ -182,65 +185,11 @@ class TronUSDTMonitor:
             
             return 0.0
     
-    def add_monitor_address(self, address: str) -> bool:
-        """添加监控地址"""
-        try:
-            # 验证地址格式
-            if not address.startswith('T') or len(address) != 34:
-                return False
-            
-            if address not in self.monitor_addresses:
-                self.monitor_addresses.append(address)
-                # 更新环境变量
-                self._update_env_addresses()
-                self.logger.info(f"添加监控地址: {address}")
-                return True
-            return False
-        except Exception as e:
-            self.logger.error(f"添加监控地址失败: {e}")
-            return False
-    
-    def remove_monitor_address(self, address: str) -> bool:
-        """删除监控地址"""
-        try:
-            if address in self.monitor_addresses:
-                self.monitor_addresses.remove(address)
-                # 更新环境变量
-                self._update_env_addresses()
-                self.logger.info(f"删除监控地址: {address}")
-                return True
-            return False
-        except Exception as e:
-            self.logger.error(f"删除监控地址失败: {e}")
-            return False
-    
-    def _update_env_addresses(self):
-        """更新环境变量中的地址列表"""
-        try:
-            # 读取当前.env文件
-            env_path = '.env'
-            if os.path.exists(env_path):
-                with open(env_path, 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-                
-                # 更新MONITOR_ADDRESSES行
-                updated = False
-                for i, line in enumerate(lines):
-                    if line.startswith('MONITOR_ADDRESSES='):
-                        lines[i] = f'MONITOR_ADDRESSES={",".join(self.monitor_addresses)}\n'
-                        updated = True
-                        break
-                
-                if not updated:
-                    lines.append(f'MONITOR_ADDRESSES={",".join(self.monitor_addresses)}\n')
-                
-                # 写回文件
-                with open(env_path, 'w', encoding='utf-8') as f:
-                    f.writelines(lines)
-                    
-        except Exception as e:
-            self.logger.error(f"更新环境变量失败: {e}")
+    def refresh_monitor_addresses(self):
+        """刷新监控地址列表（从地址管理器重新获取）"""
+        self.monitor_addresses = self.address_manager.get_whitelist_addresses()
+        self.logger.info(f"监控地址已刷新: {self.monitor_addresses}")
     
     def get_monitor_addresses(self) -> List[str]:
-        """获取当前监控地址列表"""
+        """获取监控地址列表"""
         return self.monitor_addresses.copy() 
