@@ -169,23 +169,15 @@ class TronMonitorApp:
             self.logger.error(f"发送Telegram通知失败: {e}")
     
     async def run(self):
-        """运行应用"""
-        try:
-            self.running = True
-            self.logger.info("启动简化Tron监控应用...")
-            
-            # 创建任务
-            monitor_task = asyncio.create_task(self.start_monitoring())
-            
-            # 等待任务完成或应用停止
-            await monitor_task
-            
-        except Exception as e:
-            self.logger.error(f"应用运行失败: {e}")
-            raise
-        finally:
-            self.running = False
-            self.logger.info("应用已停止")
+        self.running = True
+        self.logger.info("启动简化Tron监控应用...")
+
+        # 启动监控和机器人并发运行
+        monitor_task = asyncio.create_task(self.start_monitoring())
+        bot_task = asyncio.create_task(self.telegram_bot.application.run_polling())
+
+        # 等待两个任务都完成（实际上会一直运行，直到收到终止信号）
+        await asyncio.gather(monitor_task, bot_task)
 
 def main():
     """主函数"""
