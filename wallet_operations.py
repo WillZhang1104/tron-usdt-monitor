@@ -13,6 +13,7 @@ from tronpy.providers import HTTPProvider
 from tronpy.contract import Contract
 from tronpy.keys import PrivateKey
 from dotenv import load_dotenv
+from address_manager import AddressManager
 
 # 加载环境变量
 load_dotenv()
@@ -39,9 +40,12 @@ class TronWallet:
         # 安全设置
         self.max_trx_amount = float(os.getenv('MAX_TRX_AMOUNT', '100'))  # 最大TRX转账金额
         self.max_usdt_amount = float(os.getenv('MAX_USDT_AMOUNT', '1000'))  # 最大USDT转账金额
-        self.allowed_addresses = os.getenv('ALLOWED_ADDRESSES', '').split(',')  # 允许转账的地址白名单
         
-        self.logger.info("Tron钱包操作模块初始化完成")
+        # 自动同步白名单
+        self.address_manager = AddressManager()
+        self.allowed_addresses = self.address_manager.get_whitelist_addresses()
+        
+        self.logger.info(f"Tron钱包操作模块初始化完成，自动同步白名单: {self.allowed_addresses}")
     
     def _make_api_request(self, url: str, params: dict = None) -> Optional[dict]:
         """发送API请求"""
