@@ -392,27 +392,41 @@ WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
                         result = self.wallet_operations.transfer_trx(target_address, amount)
                     else:
                         result = self.wallet_operations.transfer_usdt(target_address, amount)
-                    if result['success']:
-                        txid = result['txid']
-                    else:
-                        raise Exception(result['error'])
+                    
+                    # 获取交易哈希，无论成功与否
+                    txid = result.get('txid')
+                    if not txid:
+                        raise Exception("未获取到交易哈希")
+                    
                     addr_info = self.address_manager.get_address_info(target_address)
                     alias = addr_info['alias'] if addr_info else "未知"
+                    
+                    # 生成区块链浏览器链接
+                    explorer_url = f"https://tronscan.org/#/transaction/{txid}"
+                    
                     success_text = f"""
-✅ 转账成功
+📤 转账已提交
 
 📤 目标地址: {alias}
 📍 地址: {target_address}
 💰 金额: {amount} {token_type}
 📝 备注: {remark if remark else "无"}
-🔗 交易ID: {txid}
+🔗 交易哈希: {txid}
 
-💡 提示：交易可能需要几分钟确认
+💡 点击下方按钮查看交易状态
                     """
-                    await query.edit_message_text(success_text)
+                    
+                    # 创建查看按钮
+                    keyboard = [
+                        [InlineKeyboardButton("🌐 在区块链浏览器查看", url=explorer_url)]
+                    ]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    
+                    await query.edit_message_text(success_text, reply_markup=reply_markup)
+                    
                 except Exception as e:
                     self.logger.error(f"转账执行失败: {e}")
-                    await query.edit_message_text(f"❌ 转账失败\n\n错误信息: {str(e)}")
+                    await query.edit_message_text(f"❌ 转账提交失败\n\n错误信息: {str(e)}")
         except Exception as e:
             self.logger.error(f"按钮回调处理失败: {e}")
             await query.edit_message_text("❌ 操作失败")

@@ -234,31 +234,15 @@ class TronWallet:
             self.logger.info(f"TRX转账txid: {txid}")
             self.logger.info(f"TRX转账raw_data: {getattr(signed_txn, 'raw_data', None)}")
             self.logger.info(f"TRX转账result: {result}")
-            # 主动查询链上状态
-            import time
-            tx_info = None
-            for _ in range(20):
-                tx_info = self.tron.get_transaction_info(txid)
-                if tx_info and 'receipt' in tx_info:
-                    break
-                time.sleep(1)
-            self.logger.info(f"TRX转账链上tx_info: {tx_info}")
-            if tx_info and tx_info.get('receipt', {}).get('result') == 'SUCCESS':
-                self.logger.info(f"TRX转账成功: {amount} TRX -> {to_address}")
-                return {
-                    'success': True,
-                    'txid': txid,
-                    'amount': amount,
-                    'to_address': to_address,
-                    'from_address': from_address
-                }
-            elif tx_info and 'receipt' in tx_info:
-                error_msg = tx_info.get('receipt', {}).get('result')
-                self.logger.error(f"TRX转账链上失败: {error_msg}")
-                return {'success': False, 'error': f'链上执行失败: {error_msg}'}
-            else:
-                self.logger.error(f"TRX转账链上确认超时或状态未知: {tx_info}")
-                return {'success': False, 'error': '链上确认超时或状态未知，请稍后在区块浏览器查询'}
+            
+            # 无论成功与否，都返回txid让用户查看
+            return {
+                'success': True,
+                'txid': txid,
+                'amount': amount,
+                'to_address': to_address,
+                'from_address': from_address
+            }
         except Exception as e:
             self.logger.error(f"TRX转账失败: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}
@@ -291,33 +275,15 @@ class TronWallet:
             txid = getattr(txn, 'txid', None)
             self.logger.info(f"USDT转账txid: {txid}")
             self.logger.info(f"USDT转账result: {result}")
-            # 主动查询链上状态
-            import time
-            tx_info = None
-            for _ in range(20):
-                tx_info = self.tron.get_transaction_info(txid)
-                if tx_info and 'receipt' in tx_info:
-                    break
-                time.sleep(1)
-            self.logger.info(f"USDT转账链上tx_info: {tx_info}")
-            if tx_info and tx_info.get('receipt', {}).get('result') == 'SUCCESS':
-                self.logger.info(f"USDT转账成功: {amount} USDT -> {to_address}")
-                explorer_url = f"https://tronscan.org/#/transaction/{txid}"
-                return {
-                    'success': True,
-                    'txid': txid,
-                    'amount': amount,
-                    'to_address': to_address,
-                    'from_address': from_address,
-                    'explorer_url': explorer_url
-                }
-            elif tx_info and 'receipt' in tx_info:
-                error_msg = tx_info.get('receipt', {}).get('result')
-                self.logger.error(f"USDT转账链上失败: {error_msg}")
-                return {'success': False, 'error': f'链上执行失败: {error_msg}'}
-            else:
-                self.logger.error(f"USDT转账链上确认超时或状态未知: {tx_info}")
-                return {'success': False, 'error': '链上确认超时或状态未知，请稍后在区块浏览器查询'}
+            
+            # 无论成功与否，都返回txid让用户查看
+            return {
+                'success': True,
+                'txid': txid,
+                'amount': amount,
+                'to_address': to_address,
+                'from_address': from_address
+            }
         except Exception as e:
             self.logger.error(f"USDT转账失败: {e}")
             return {'success': False, 'error': str(e)}
