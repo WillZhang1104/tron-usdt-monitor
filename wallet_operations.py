@@ -302,12 +302,14 @@ class TronWallet:
             self.logger.info(f"USDT转账链上tx_info: {tx_info}")
             if tx_info and tx_info.get('receipt', {}).get('result') == 'SUCCESS':
                 self.logger.info(f"USDT转账成功: {amount} USDT -> {to_address}")
+                explorer_url = f"https://tronscan.org/#/transaction/{txid}"
                 return {
                     'success': True,
                     'txid': txid,
                     'amount': amount,
                     'to_address': to_address,
-                    'from_address': from_address
+                    'from_address': from_address,
+                    'explorer_url': explorer_url
                 }
             elif tx_info and 'receipt' in tx_info:
                 error_msg = tx_info.get('receipt', {}).get('result')
@@ -344,6 +346,8 @@ class TronWallet:
             message += f"📤 发送方: {result['from_address'][:10]}...{result['from_address'][-10:]}\n"
             message += f"📥 接收方: {result['to_address'][:10]}...{result['to_address'][-10:]}\n"
             message += f"🔗 交易哈希: {result['txid']}\n"
+            if 'explorer_url' in result:
+                message += f"🌐 <a href='{result['explorer_url']}'>在区块链浏览器查看</a>\n"
             message += f"⏰ 时间: {time.strftime('%Y-%m-%d %H:%M:%S')}"
         else:
             message = f"❌ {token_type}转账失败\n\n"
