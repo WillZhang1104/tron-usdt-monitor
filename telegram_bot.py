@@ -194,39 +194,36 @@ WHITELIST_ADDRESSES=地址1=别名1,描述1|地址2=别名2,描述2
         if not self._is_authorized(update.effective_user.id):
             await update.message.reply_text("❌ 您没有权限使用此机器人")
             return
-        
         try:
             await update.message.reply_text("🔄 正在查询最新交易，请稍候...")
-            
-            # 获取监控地址
             monitor_addresses = os.getenv('MONITOR_ADDRESSES', '').split(',')
             monitor_addresses = [addr.strip() for addr in monitor_addresses if addr.strip()]
-            
             if not monitor_addresses:
                 await update.message.reply_text("❌ 未配置监控地址")
                 return
-            
-            latest_text = "📊 最新交易记录\n\n"
-            
+            found = False
             for address in monitor_addresses:
                 try:
                     latest_tx = self.tron_monitor.get_latest_transfer(address)
                     if latest_tx:
-                        latest_text += f"📍 {address[:10]}...{address[-10:]}\n"
-                        latest_text += f"   🕐 时间: {latest_tx['timestamp']}\n"
-                        latest_text += f"   💰 金额: {latest_tx['amount']} USDT\n"
-                        latest_text += f"   📋 类型: {latest_tx['type']}\n"
-                        latest_text += f"   🔗 交易ID: {latest_tx['txid'][:20]}...\n\n"
-                    else:
-                        latest_text += f"📍 {address[:10]}...{address[-10:]}\n"
-                        latest_text += f"   📭 暂无交易记录\n\n"
+                        found = True
+                        # 格式化时间戳
+                        ts = latest_tx.get('timestamp', 0)
+                        if isinstance(ts, (int, float)) and ts > 1e10:
+                            ts = int(ts / 1000)
+                        time_str = datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S') if ts else '未知'
+                        msg = f"📍 {address[:10]}...{address[-10:]}\n"
+                        msg += f"🕐 时间: {time_str}\n"
+                        msg += f"💰 金额: {latest_tx['amount']} USDT\n"
+                        msg += f"🔗 交易哈希: {latest_tx['txid'][:20]}..."
+                        # 构造按钮
+                        keyboard = [[InlineKeyboardButton("在区块链浏览器查看", url=f"https://tronscan.org/#/transaction/{latest_tx['txid']}")]]
+                        reply_markup = InlineKeyboardMarkup(keyboard)
+                        await update.message.reply_text(msg, reply_markup=reply_markup)
                 except Exception as e:
                     self.logger.error(f"查询地址 {address} 最新交易失败: {e}")
-                    latest_text += f"📍 {address[:10]}...{address[-10:]}\n"
-                    latest_text += f"   ❌ 查询失败\n\n"
-            
-            await update.message.reply_text(latest_text)
-            
+            if not found:
+                await update.message.reply_text("📭 所有监控地址暂无交易记录")
         except Exception as e:
             self.logger.error(f"最新交易查询失败: {e}")
             await update.message.reply_text("❌ 最新交易查询失败")

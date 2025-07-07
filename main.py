@@ -13,7 +13,7 @@ import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
 import threading
-from telegram import BotCommand
+from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
 
 # 导入自定义模块
 from tron_monitor import TronUSDTMonitor
@@ -98,77 +98,45 @@ class TronMonitorApp:
     async def _send_transaction_notification(self, transaction):
         """发送交易通知"""
         try:
-            # 格式化通知消息
-            message = self._format_transaction_message(transaction)
-            
-            # 发送到Telegram
-            await self._send_telegram_notification(message)
-            
-            self.logger.info(f"已发送交易通知: {transaction.get('txid', 'unknown')}")
-            
-        except Exception as e:
-            self.logger.error(f"发送交易通知失败: {e}")
-    
-    def _format_transaction_message(self, transaction):
-        """格式化交易消息"""
-        try:
+            # 格式化时间戳
             txid = transaction.get('txid', 'unknown')
             amount = transaction.get('amount', 0)
             from_address = transaction.get('from', 'unknown')
             to_address = transaction.get('to', 'unknown')
             timestamp = transaction.get('timestamp', 'unknown')
-            
-            # 格式化时间
+            if isinstance(timestamp, (int, float)) and timestamp > 1e10:
+                timestamp = int(timestamp / 1000)
             if isinstance(timestamp, (int, float)):
                 from datetime import datetime
-                dt = datetime.fromtimestamp(timestamp / 1000)
-                time_str = dt.strftime('%Y-%m-%d %H:%M:%S')
+                time_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
             else:
                 time_str = str(timestamp)
-            
-            message = f"""
-🔔 新USDT交易通知
-
-💰 金额: {amount:,.2f} USDT
-📤 发送方: {from_address[:10]}...{from_address[-10:]}
-📥 接收方: {to_address[:10]}...{to_address[-10:]}
-🕐 时间: {time_str}
-🔗 交易ID: {txid[:20]}...
-
-💡 提示：使用 /balance 查看余额，/latest 查看最新交易
-            """
-            
-            return message.strip()
-            
-        except Exception as e:
-            self.logger.error(f"格式化交易消息失败: {e}")
-            return f"🔔 新交易通知\n\n交易ID: {transaction.get('txid', 'unknown')}"
-    
-    async def _send_telegram_notification(self, message):
-        """发送Telegram通知"""
-        try:
+            msg = f"📍 {to_address[:10]}...{to_address[-10:] if to_address else ''}\n"
+            msg += f"🕐 时间: {time_str}\n"
+            msg += f"💰 金额: {amount} USDT\n"
+            msg += f"🔗 交易哈希: {txid[:20]}..."
+            keyboard = [[InlineKeyboardButton("在区块链浏览器查看", url=f"https://tronscan.org/#/transaction/{txid}")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
             # 获取允许的用户列表
             allowed_users = os.getenv('ALLOWED_USERS', '').split(',')
             allowed_users = [user.strip() for user in allowed_users if user.strip()]
-            
             if not allowed_users:
                 self.logger.warning("未配置允许的用户，跳过通知")
                 return
-            
-            # 发送给所有允许的用户
             for user_id in allowed_users:
                 try:
                     await self.telegram_bot.application.bot.send_message(
                         chat_id=user_id,
-                        text=message
+                        text=msg,
+                        reply_markup=reply_markup
                     )
                     self.logger.info(f"通知已发送给用户 {user_id}")
                 except Exception as e:
                     self.logger.error(f"发送通知给用户 {user_id} 失败: {e}")
                     continue
-            
+            self.logger.info(f"已发送交易通知: {transaction.get('txid', 'unknown')}")
         except Exception as e:
-            self.logger.error(f"发送Telegram通知失败: {e}")
+            self.logger.error(f"发送交易通知失败: {e}")
     
     async def run(self):
         self.running = True
